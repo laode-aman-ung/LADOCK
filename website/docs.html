@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation — LADOCK</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><span class="logo-icon">⬡</span><span>LADOCK</span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="features.html">Features</a></li>
+      <li><a href="docs.html" class="active">Documentation</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="citation.html">Citation</a></li>
+    </ul>
+    <a href="#install" class="btn btn-primary">Get Started</a>
+    <button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="docs-layout">
+  <!-- Sidebar -->
+  <aside class="docs-sidebar">
+    <h4>Getting Started</h4>
+    <ul>
+      <li><a href="#requirements" class="sidebar-link">Requirements</a></li>
+      <li><a href="#install" class="sidebar-link">Installation</a></li>
+      <li><a href="#launch" class="sidebar-link">Launching LADOCK</a></li>
+    </ul>
+    <h4>Usage Guide</h4>
+    <ul>
+      <li><a href="#usage" class="sidebar-link">Overview</a></li>
+      <li><a href="#prepare" class="sidebar-link">Preparing Input</a></li>
+      <li><a href="#configure" class="sidebar-link">Configuring Docking</a></li>
+      <li><a href="#run" class="sidebar-link">Running a Docking Job</a></li>
+      <li><a href="#results" class="sidebar-link">Viewing Results</a></li>
+    </ul>
+    <h4>Reference</h4>
+    <ul>
+      <li><a href="#structure" class="sidebar-link">Project Structure</a></li>
+      <li><a href="#tools" class="sidebar-link">Bundled Tools</a></li>
+      <li><a href="#wsl" class="sidebar-link">Platform Support</a></li>
+      <li><a href="#gpu" class="sidebar-link">GPU Engines</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="docs-content">
+    <h1>Documentation</h1>
+    <p class="lead">Complete guide to installing, configuring, and using LADOCK Desktop for molecular docking workflows.</p>
+
+    <!-- Requirements -->
+    <section class="docs-section" id="requirements">
+      <h2>📋 Requirements</h2>
+      <p>LADOCK Desktop requires the following software on your system before installation:</p>
+      <table class="req-table">
+        <thead>
+          <tr><th>Dependency</th><th>Minimum Version</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Python</code></td><td>3.10</td><td>3.11 or 3.12 recommended</td></tr>
+          <tr><td><code>PySide6</code></td><td>6.5</td><td>Qt6 Python bindings (GUI)</td></tr>
+          <tr><td><code>NumPy</code></td><td>1.24</td><td>Array computations</td></tr>
+          <tr><td><code>SciPy</code></td><td>1.10</td><td>Scientific utilities</td></tr>
+          <tr><td><code>pandas</code></td><td>2.0</td><td>Result data handling</td></tr>
+          <tr><td><code>RDKit</code></td><td>any</td><td>Optional — SMILES rendering &amp; ligand prep</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body"><strong>Tip:</strong> Using <strong>Miniconda</strong> or <strong>Anaconda</strong> is the easiest way to manage all dependencies, especially RDKit which can be tricky to install with pip alone.</div>
+      </div>
+    </section>
+
+    <!-- Installation -->
+    <section class="docs-section" id="install">
+      <h2>⬇️ Installation</h2>
+
+      <h3>Windows</h3>
+      <p>Open PowerShell or Command Prompt and run:</p>
+      <pre><code># Clone the repository
+git clone https://github.com/laode-aman-ung/LADOCK.git
+cd ladock-desktop
+
+# Install core dependencies
+python -m pip install -e .
+
+# Optional: install with RDKit support
+python -m pip install -e ".[rdkit]"</code></pre>
+
+      <h3>Linux / macOS</h3>
+      <pre><code>git clone https://github.com/laode-aman-ung/LADOCK.git
+cd ladock-desktop
+pip install -e .</code></pre>
+
+      <h3>Using Conda (recommended)</h3>
+      <pre><code># Create a dedicated environment
+conda create -n ladock python=3.11
+conda activate ladock
+
+# Install RDKit via conda (easier than pip)
+conda install -c conda-forge rdkit
+
+# Install LADOCK
+pip install -e .</code></pre>
+
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Bundled binaries:</strong> AutoDock Vina, AutoDock 4, ADFRsuite, MGLTools, and OpenBabel are included in the <code>bin/</code> directory. You do <strong>not</strong> need to install these separately.</div>
+      </div>
+    </section>
+
+    <!-- Launch -->
+    <section class="docs-section" id="launch">
+      <h2>🚀 Launching LADOCK</h2>
+      <p>After installation, start LADOCK using the launcher appropriate for your platform:</p>
+
+      <h3>Windows</h3>
+      <pre><code># Double-click in File Explorer, or run from terminal:
+ladock.bat</code></pre>
+
+      <h3>Windows with WSL backend</h3>
+      <pre><code>ladock-wsl.bat</code></pre>
+
+      <h3>Linux / macOS</h3>
+      <pre><code>bash ladock.sh</code></pre>
+
+      <h3>Cross-platform (Python)</h3>
+      <pre><code>python main.py</code></pre>
+
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>First launch:</strong> LADOCK may take a few seconds on first launch as it detects bundled tool paths. Subsequent launches are faster.</div>
+      </div>
+    </section>
+
+    <!-- Usage Overview -->
+    <section class="docs-section" id="usage">
+      <h2>📖 Usage Overview</h2>
+      <p>LADOCK organizes your work into <strong>Projects</strong>. A project contains your receptor, ligand library, docking configuration, and all results in one structured directory. The main window is divided into panels:</p>
+      <ul>
+        <li><strong>Docking Prep</strong> — load receptor and ligands, set search box</li>
+        <li><strong>Job Manager</strong> — configure and launch batch docking</li>
+        <li><strong>Result Explorer</strong> — browse scores, poses, and interaction maps</li>
+        <li><strong>3D Viewer</strong> — interactive molecular visualization</li>
+        <li><strong>Ligand Library</strong> — manage and filter your compound set</li>
+      </ul>
+    </section>
+
+    <!-- Prepare Input -->
+    <section class="docs-section" id="prepare">
+      <h2>🧪 Preparing Input</h2>
+
+      <h3>Loading a receptor</h3>
+      <p>Go to <strong>Docking Prep → Receptor</strong> and click <em>Load Receptor</em>. Accepted formats:</p>
+      <ul>
+        <li><code>.pdb</code> — LADOCK converts to PDBQT automatically via ADFRsuite</li>
+        <li><code>.pdbqt</code> — loaded directly</li>
+      </ul>
+      <p>After loading, LADOCK will attempt to add polar hydrogens and assign Gasteiger charges. Review the log output in the panel for any warnings.</p>
+
+      <h3>Loading ligands</h3>
+      <p>Go to <strong>Ligand Library → Import</strong>. Supported formats:</p>
+      <ul>
+        <li><code>.sdf</code> — multi-molecule SD file</li>
+        <li><code>.csv</code> — with a SMILES column (column header: <code>smiles</code> or <code>SMILES</code>)</li>
+        <li><code>.pdbqt</code> — pre-prepared ligands (no conversion needed)</li>
+      </ul>
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">If RDKit is installed, LADOCK will render 2D SMILES depictions in the ligand table. Without RDKit, ligands are still functional but displayed as text only.</div>
+      </div>
+    </section>
+
+    <!-- Configure -->
+    <section class="docs-section" id="configure">
+      <h2>⚙️ Configuring Docking</h2>
+
+      <h3>Setting the search box</h3>
+      <p>In the <strong>Docking Prep</strong> panel, set the docking box center and dimensions:</p>
+      <ul>
+        <li>Enter X/Y/Z center coordinates manually, or</li>
+        <li>Click a residue in the 3D viewer to center the box on that position</li>
+        <li>Adjust box size (in Å) to cover the binding pocket</li>
+      </ul>
+
+      <h3>Choosing a docking engine</h3>
+      <p>Select the engine from the dropdown in the <strong>Job Manager</strong> panel:</p>
+      <ul>
+        <li><strong>AutoDock Vina</strong> — best default choice; fast and accurate</li>
+        <li><strong>AutoDock 4</strong> — classical method; good for benchmarking</li>
+        <li><strong>VinaGPU</strong> — GPU-accelerated; requires external binary (see <a href="#gpu">GPU Engines</a>)</li>
+        <li><strong>AutoDock-GPU</strong> — massive throughput on NVIDIA GPUs</li>
+      </ul>
+
+      <h3>Key parameters</h3>
+      <table class="req-table">
+        <thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>exhaustiveness</code></td><td>8</td><td>Search thoroughness (higher = slower but more accurate)</td></tr>
+          <tr><td><code>num_modes</code></td><td>9</td><td>Number of binding poses to output per ligand</td></tr>
+          <tr><td><code>energy_range</code></td><td>3</td><td>Max energy difference from best pose (kcal/mol)</td></tr>
+          <tr><td><code>cpu</code></td><td>auto</td><td>Number of CPU threads to use</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Run -->
+    <section class="docs-section" id="run">
+      <h2>▶️ Running a Docking Job</h2>
+      <ol>
+        <li>Ensure your receptor and at least one ligand are loaded.</li>
+        <li>Verify the search box covers your target binding site.</li>
+        <li>Select the docking engine and set parameters in <strong>Job Manager</strong>.</li>
+        <li>Click <strong>Run Docking</strong> (or <strong>Run Batch</strong> for multiple ligands).</li>
+        <li>Monitor progress in the job queue — each ligand shows its status (queued / running / done / failed).</li>
+        <li>When all jobs complete, results are automatically loaded into the <strong>Result Explorer</strong>.</li>
+      </ol>
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Jobs can be paused or cancelled at any time from the Job Manager. Completed results are preserved even if you cancel the remaining queue.</div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="docs-section" id="results">
+      <h2>📊 Viewing Results</h2>
+      <p>The <strong>Result Explorer</strong> shows a sortable table of all completed docking runs with columns:</p>
+      <ul>
+        <li><code>Ligand</code> — ligand name or identifier</li>
+        <li><code>Best Score</code> — lowest binding energy (kcal/mol)</li>
+        <li><code>Poses</code> — number of poses returned</li>
+        <li><code>Engine</code> — which docking engine was used</li>
+      </ul>
+      <p>Click any row to:</p>
+      <ul>
+        <li>Load the docked pose in the <strong>3D Viewer</strong></li>
+        <li>View the <strong>interaction analysis</strong> panel (H-bonds, hydrophobic contacts, etc.)</li>
+        <li>Cycle through all poses using the pose navigator</li>
+      </ul>
+      <h3>Exporting results</h3>
+      <p>Use <strong>File → Export Results</strong> to save the current result table as <code>.csv</code> or <code>.xlsx</code>. Individual poses can be exported as <code>.pdbqt</code> or <code>.pdb</code>.</p>
+    </section>
+
+    <!-- Project Structure -->
+    <section class="docs-section" id="structure">
+      <h2>📁 Project Structure</h2>
+      <p>The LADOCK source code is organized as follows:</p>
+      <pre><code>LADOCK/
+├── app/          # Main window, dialogs, project manager
+├── core/         # Job scheduler, WSL backend, tool paths
+├── data/         # Data models — project, ligand library, result parser
+├── engine/       # Docking engine abstraction, molecule prep
+├── gui/          # Theme, stylesheet, UI panels
+│   └── panels/   # Docking prep, job manager, result explorer…
+├── bin/          # Bundled binaries (ADFRsuite, Vina, MGLTools…)
+├── main.py       # Entry point
+├── ladock.bat    # Windows launcher
+├── ladock.sh     # Linux/macOS launcher
+└── ladock-wsl.bat  # WSL launcher</code></pre>
+    </section>
+
+    <!-- Bundled Tools -->
+    <section class="docs-section" id="tools">
+      <h2>🔧 Bundled Tools</h2>
+      <p>The <code>bin/</code> directory ships with these tools — no separate installation needed:</p>
+      <table class="req-table">
+        <thead><tr><th>Tool</th><th>Version</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>AutoDock Vina</td><td>1.2.7</td><td>Primary CPU docking engine</td></tr>
+          <tr><td>AutoDock 4</td><td>—</td><td>Classical Lamarckian GA engine</td></tr>
+          <tr><td>ADFRsuite / AGFR</td><td>1.0</td><td>Receptor &amp; ligand preparation</td></tr>
+          <tr><td>MGLTools</td><td>1.5.6</td><td>Molecular graphics and file conversion</td></tr>
+          <tr><td>OpenBabel</td><td>—</td><td>Chemical format conversion</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Platform Support -->
+    <section class="docs-section" id="wsl">
+      <h2>🖥️ Platform Support</h2>
+      <p>LADOCK Desktop runs natively on <strong>Windows</strong> and <strong>Linux</strong>. Each platform has a dedicated launcher and installer.</p>
+
+      <h3>🪟 Windows (native)</h3>
+      <p>Run LADOCK directly on Windows — no Linux or WSL required for CPU docking.</p>
+      <ol>
+        <li>Clone the repository and run <code>install.bat</code> — it detects your Python (Miniconda / Anaconda / system) and installs all dependencies automatically</li>
+        <li>A shortcut <code>LADOCK.bat</code> is created on your Desktop</li>
+        <li>Or launch manually: <code>ladock.bat</code></li>
+      </ol>
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">The 3D molecular viewer runs fully inside the app on Windows (Qt WebEngine + 3Dmol.js). No browser needed.</div>
+      </div>
+
+      <h3 style="margin-top:1.5rem;">🐧 Linux (native)</h3>
+      <p>Run LADOCK directly on any modern Linux distribution.</p>
+      <ol>
+        <li>Clone the repository and run <code>bash install.sh</code> — it finds Python in conda, venv, pyenv, or your system and installs all dependencies</li>
+        <li>A <code>.desktop</code> shortcut is created in <code>~/.local/share/applications</code></li>
+        <li>Or launch manually: <code>bash ladock.sh</code></li>
+      </ol>
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">The 3D viewer runs in-app on Linux when <code>PySide6-WebEngine</code> is available. If it opens in your browser instead, install the extra: <code>pip install -e ".[webengine]"</code></div>
+      </div>
+      <div class="callout callout-info" style="margin-top:0.75rem;">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">2D ligand diagrams (LID style) require <strong>RDKit</strong>: <code>pip install -e ".[rdkit]"</code> or <code>conda install -c conda-forge rdkit</code>. All other features work without RDKit.</div>
+      </div>
+
+      <h3 style="margin-top:1.5rem;">🔗 Windows + WSL (Linux binaries on Windows)</h3>
+      <p>To run GPU-accelerated Linux docking engines (VinaGPU, AutoDock-GPU) from Windows, enable WSL 2:</p>
+      <ol>
+        <li>Open PowerShell as Administrator and run <code>wsl --install</code></li>
+        <li>Install a Linux distribution (e.g., Ubuntu 22.04) from the Microsoft Store</li>
+        <li>Inside your WSL distribution, install the GPU docking binaries</li>
+        <li>Launch LADOCK using <code>ladock-wsl.bat</code> — it auto-detects your WSL distribution</li>
+        <li>In LADOCK, go to <strong>Settings → Tool Paths</strong> and set the VinaGPU / AutoDock-GPU binary paths</li>
+      </ol>
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">WSL GPU passthrough requires <strong>WSL 2</strong> (not WSL 1) and an NVIDIA GPU with Windows drivers that include CUDA support via WSL.</div>
+      </div>
+    </section>
+
+    <!-- GPU -->
+    <section class="docs-section" id="gpu">
+      <h2>⚡ GPU Engines</h2>
+      <p>VinaGPU and AutoDock-GPU are <strong>not bundled</strong> — they must be installed separately and configured in LADOCK's settings.</p>
+      <h3>VinaGPU</h3>
+      <p>A GPU-accelerated version of AutoDock Vina. Install inside your WSL environment or natively on Linux, then add the binary path in <strong>Settings → Tool Paths → VinaGPU</strong>.</p>
+      <h3>AutoDock-GPU</h3>
+      <p>Provides massive throughput on NVIDIA GPUs by running thousands of docking evaluations per second. Best suited for large-scale virtual screening. Configure via <strong>Settings → Tool Paths → AutoDock-GPU</strong>.</p>
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">For typical drug discovery projects with hundreds of ligands, <strong>AutoDock Vina (CPU)</strong> is often fast enough without GPU setup. GPU engines shine with library sizes in the tens of thousands.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="logo-icon">⬡</span><span class="footer-name">LADOCK Desktop</span>
+      <p>Open-source molecular docking workstation.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Pages</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="docs.html">Documentation</a></li>
+          <li><a href="citation.html">Citation</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Sections</h4>
+        <ul>
+          <li><a href="#install">Installation</a></li>
+          <li><a href="#usage">Usage Guide</a></li>
+          <li><a href="#structure">Project Structure</a></li>
+          <li><a href="#wsl">Platform Support</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2024 LADOCK · All rights reserved.</p>
+    <p>LADOCK Desktop is open-source software licensed under the <a href="LICENSE" style="color:var(--blue)">MIT License</a>.</p>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>

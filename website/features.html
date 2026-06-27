@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Features — LADOCK</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><span class="logo-icon">⬡</span><span>LADOCK</span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="features.html" class="active">Features</a></li>
+      <li><a href="docs.html">Documentation</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="citation.html">Citation</a></li>
+    </ul>
+    <a href="docs.html#install" class="btn btn-primary">Get Started</a>
+    <button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <span class="section-badge">Features</span>
+    <h1>Everything in one<br/><span class="gradient-text">workstation</span></h1>
+    <p>LADOCK integrates every step of the molecular docking pipeline into a single, cohesive desktop application.</p>
+  </div>
+</section>
+
+<section class="features-detail section">
+  <div class="container">
+
+    <!-- Multi-engine Docking -->
+    <div class="feature-block">
+      <div class="feature-block-text">
+        <span class="section-badge">Docking Engines</span>
+        <h2>Multi-engine Docking Support</h2>
+        <p>Choose the right docking engine for your research — or compare results across multiple engines in one project. LADOCK natively supports four major docking backends:</p>
+        <ul>
+          <li>AutoDock Vina 1.2.7 (CPU, bundled)</li>
+          <li>AutoDock 4 with Lamarckian GA (bundled)</li>
+          <li>VinaGPU — GPU-accelerated Vina variant</li>
+          <li>AutoDock-GPU — massive GPU throughput</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div style="text-align:center">
+          <div class="feature-icon-large">⚙️</div>
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            <span class="badge badge-blue">AutoDock Vina</span>
+            <span class="badge badge-purple">AutoDock 4</span>
+            <span class="badge badge-teal">VinaGPU</span>
+            <span class="badge badge-green">AutoDock-GPU</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Docking -->
+    <div class="feature-block reverse">
+      <div class="feature-block-text">
+        <span class="section-badge">Batch Processing</span>
+        <h2>Parallel Batch Docking</h2>
+        <p>Run entire ligand libraries against a single receptor simultaneously. The built-in job scheduler distributes work across available CPU cores or GPU units, cutting screening time from days to hours.</p>
+        <ul>
+          <li>Queue unlimited ligands in a single batch run</li>
+          <li>Live progress tracking per ligand and per job</li>
+          <li>Automatic error recovery — failed jobs are flagged, not ignored</li>
+          <li>Configurable parallelism (thread count / GPU index)</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div style="text-align:center">
+          <div class="feature-icon-large">📦</div>
+          <div style="margin-top:20px;font-family:var(--font-mono);font-size:0.78rem;color:var(--subtext0);text-align:left;background:var(--crust);padding:16px;border-radius:8px;border:1px solid var(--surface0);line-height:1.8">
+            <span style="color:var(--green)">✓</span> ligand_001.pdbqt &nbsp;<span style="color:var(--teal)">−9.2 kcal/mol</span><br/>
+            <span style="color:var(--green)">✓</span> ligand_002.pdbqt &nbsp;<span style="color:var(--teal)">−8.7 kcal/mol</span><br/>
+            <span style="color:var(--yellow)">⟳</span> ligand_003.pdbqt &nbsp;<span style="color:var(--yellow)">running…</span><br/>
+            <span style="color:var(--surface2)">○</span> ligand_004.pdbqt &nbsp;<span style="color:var(--surface2)">queued</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ligand Library -->
+    <div class="feature-block">
+      <div class="feature-block-text">
+        <span class="section-badge">Ligand Management</span>
+        <h2>Ligand Library Manager</h2>
+        <p>Manage large compound collections without leaving the application. Import from common cheminformatics formats and visualize every structure before running a single docking job.</p>
+        <ul>
+          <li>Import from CSV, SDF, and PDBQT formats</li>
+          <li>SMILES rendering via RDKit (optional)</li>
+          <li>Filter, sort, and search your library by property</li>
+          <li>Automatic format conversion to PDBQT for docking</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-icon-large">🧬</div>
+      </div>
+    </div>
+
+    <!-- 3D Viewer -->
+    <div class="feature-block reverse">
+      <div class="feature-block-text">
+        <span class="section-badge">Visualization</span>
+        <h2>Interactive 3D Molecular Viewer</h2>
+        <p>Inspect docking poses directly inside LADOCK using the embedded 3Dmol.js viewer. No external visualization software required.</p>
+        <ul>
+          <li>Receptor surface and cartoon representations</li>
+          <li>Ligand pose overlay for multiple conformers</li>
+          <li>Non-covalent interaction display (H-bond, π-stacking, hydrophobic)</li>
+          <li>Rotate, zoom, and export as PNG from within the app</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <img src="ladock_viewer.png" alt="3D viewer" style="border-radius:12px;max-height:220px;object-fit:cover;width:100%" />
+      </div>
+    </div>
+
+    <!-- Interaction Analysis -->
+    <div class="feature-block">
+      <div class="feature-block-text">
+        <span class="section-badge">Analysis</span>
+        <h2>Non-covalent Interaction Analysis</h2>
+        <p>Automatically compute and display the interaction fingerprint between each ligand pose and the receptor binding site.</p>
+        <ul>
+          <li>Hydrogen bonds (donor–acceptor detection)</li>
+          <li>π–π stacking and π–cation interactions</li>
+          <li>Hydrophobic contacts</li>
+          <li>Salt bridges and halogen bonds</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-icon-large">🔗</div>
+      </div>
+    </div>
+
+    <!-- Result Explorer -->
+    <div class="feature-block reverse">
+      <div class="feature-block-text">
+        <span class="section-badge">Results</span>
+        <h2>Result Explorer</h2>
+        <p>Navigate batch docking results in a sortable, filterable data table. Identify your top hits instantly and dive into structural details with one click.</p>
+        <ul>
+          <li>Sort by binding energy, ligand name, or run time</li>
+          <li>Click any row to load the pose in the 3D viewer</li>
+          <li>Export selected results to CSV or Excel</li>
+          <li>Flag hits and annotate with custom notes</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-icon-large">📊</div>
+      </div>
+    </div>
+
+    <!-- Platform Support -->
+    <div class="feature-block">
+      <div class="feature-block-text">
+        <span class="section-badge">Platform</span>
+        <h2>Windows &amp; Linux Support</h2>
+        <p>LADOCK Desktop runs natively on both <strong>Windows</strong> and <strong>Linux</strong>, with full support for all docking engines, 2D/3D molecular visualization, and the job scheduler on each platform.</p>
+
+        <h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:1rem;">🪟 Windows</h3>
+        <ul>
+          <li>One-click launcher via <code>ladock.bat</code> or <code>install.bat</code></li>
+          <li>Auto-detects Miniconda, Anaconda, and virtual environments</li>
+          <li>Embedded 3D viewer (Qt WebEngine + 3Dmol.js) runs fully in-app</li>
+          <li>WSL backend: run GPU-accelerated Linux binaries without dual-boot</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;margin-bottom:0.5rem;font-size:1rem;">🐧 Linux (native)</h3>
+        <ul>
+          <li>Shell launcher via <code>bash ladock.sh</code> or <code>bash install.sh</code></li>
+          <li>Auto-discovers Python in conda, venv, pyenv, and system paths</li>
+          <li>Full 3D viewer in-app; falls back to system browser if Qt WebEngine is not installed</li>
+          <li>Desktop shortcut created automatically by the installer</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;margin-bottom:0.5rem;font-size:1rem;">🔗 Windows + WSL (Linux binaries on Windows)</h3>
+        <ul>
+          <li>Transparent WSL backend — no manual path juggling</li>
+          <li>Auto-detects installed WSL distributions</li>
+          <li>Supports VinaGPU and AutoDock-GPU inside WSL</li>
+          <li>Dedicated <code>ladock-wsl.bat</code> launcher</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-icon-large">🖥️</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta-section">
+  <div class="container">
+    <div class="cta-box">
+      <div class="cta-orb"></div>
+      <h2>Ready to explore these features?</h2>
+      <p>Install LADOCK in minutes and start docking with your own receptors and ligands.</p>
+      <div class="cta-actions">
+        <a href="docs.html#install" class="btn btn-primary btn-lg">Installation Guide</a>
+        <a href="docs.html#usage" class="btn btn-ghost btn-lg">Usage Guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="logo-icon">⬡</span><span class="footer-name">LADOCK Desktop</span>
+      <p>Open-source molecular docking workstation.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Pages</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="docs.html">Documentation</a></li>
+          <li><a href="citation.html">Citation</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="docs.html#install">Installation</a></li>
+          <li><a href="docs.html#usage">Usage Guide</a></li>
+          <li><a href="docs.html#structure">Project Structure</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2024 LADOCK · All rights reserved.</p>
+    <p>LADOCK Desktop is open-source software licensed under the <a href="LICENSE" style="color:var(--blue)">MIT License</a>.</p>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
