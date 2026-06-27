@@ -7,5 +7,9 @@ numpy>=1.24
 scipy>=1.10
 pandas>=2.0
 
-# Optional — SMILES rendering and ligand conversion
+# Optional — 2D SMILES depiction (LID diagram style in interaction panel)
 # rdkit>=2023.3
+
+# Optional — embedded 3D viewer (required on distro packages that split Qt WebEngine)
+# If the 3D viewer opens in your browser instead of the app, install this:
+# PySide6-WebEngine>=6.5

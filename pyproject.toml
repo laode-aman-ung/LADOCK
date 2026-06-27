@@ -31,8 +31,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# RDKit enables 2D SMILES depiction (LID diagram style in the interaction panel)
 rdkit = ["rdkit>=2023.3"]
-full  = ["rdkit>=2023.3"]
+# Some Linux distros ship PySide6-WebEngine as a separate package.
+# Install this extra if the embedded 3D viewer falls back to the browser.
+webengine = ["PySide6-WebEngine>=6.5"]
+# Install everything at once
+full = ["rdkit>=2023.3", "PySide6-WebEngine>=6.5"]
 
 [project.urls]
 Homepage    = "https://github.com/laode-aman-ung/LADOCK"

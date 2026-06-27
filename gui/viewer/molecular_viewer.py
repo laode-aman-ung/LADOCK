@@ -56,6 +56,10 @@ else:
         "Interactive 3D viewer is disabled for WSL sessions."
     )
 
+# True when the embedded viewer cannot run and we should open the browser instead.
+# This covers both WSL and any platform where QtWebEngine is missing/broken.
+_USE_BROWSER_FALLBACK = _IS_WSL or QWebEngineView is None
+
 
 # Path to the bundled HTML template
 _VIEWER_HTML = Path(__file__).parent.parent / "assets" / "viewer.html"
@@ -95,8 +99,12 @@ class _ExternalBrowserViewerPanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(10)
 
+        if _IS_WSL:
+            detail = "WSL Ubuntu runs the 3D view in your Windows browser."
+        else:
+            detail = "Qt WebEngine is unavailable; the 3D view opens in your system browser."
         msg = QLabel(
-            "WSL mode uses your browser for 3D rendering.\n\n"
+            f"{detail}\n\n"
             "Click the button below to open or refresh the interactive 3D view."
         )
         msg.setAlignment(Qt.AlignCenter)
@@ -316,7 +324,7 @@ class MolecularViewerPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._external = None
-        if _IS_WSL:
+        if _USE_BROWSER_FALLBACK:
             self._external = _ExternalBrowserViewerPanel(self)
             self._external.screenshot_taken.connect(self.screenshot_taken)
         self._receptor_path: str = ""
@@ -341,16 +349,12 @@ class MolecularViewerPanel(QWidget):
             return
 
         if QWebEngineView is None:
+            # _USE_BROWSER_FALLBACK already activates the external panel above;
+            # this branch is unreachable in normal operation but kept as safety net.
             reason = (
-                "Interactive 3D viewer is unavailable in this session.\n\n"
-                "WSL Ubuntu currently runs in safe mode without Qt WebEngine, "
-                "so docking and file-based workflows stay usable."
+                "Interactive 3D viewer could not be initialized.\n\n"
+                f"{_WEBENGINE_IMPORT_ERROR or 'Qt WebEngine is not available.'}"
             )
-            if _WEBENGINE_IMPORT_ERROR and not _IS_WSL:
-                reason = (
-                    "Interactive 3D viewer could not be initialized.\n\n"
-                    f"{_WEBENGINE_IMPORT_ERROR}"
-                )
             self._status_label = QLabel(reason)
             self._status_label.setAlignment(Qt.AlignCenter)
             self._status_label.setWordWrap(True)

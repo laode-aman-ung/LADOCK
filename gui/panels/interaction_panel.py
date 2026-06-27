@@ -1048,14 +1048,13 @@ class _DiagramCanvas(QWidget):
                                  white_bg: bool = False) -> tuple[str, dict[str, tuple[float, float]]]:
         if not smiles:
             return "", {}
+        # On Windows: prefer WSL RDKit if available (avoids needing local RDKit install).
         if os.name == "nt" and wsl_available():
             svg_text, anchors = self._render_smiles_depiction_wsl(smiles, width, height, white_bg)
             if svg_text:
                 return svg_text, anchors
-        svg_text, anchors = self._render_smiles_depiction_local(smiles, width, height, white_bg)
-        if svg_text:
-            return svg_text, anchors
-        return self._render_smiles_depiction_wsl(smiles, width, height, white_bg)
+        # Try local RDKit (works on both Windows and Linux).
+        return self._render_smiles_depiction_local(smiles, width, height, white_bg)
 
     def _render_smiles_depiction_local(self, smiles: str, width: int, height: int,
                                        white_bg: bool = False) -> tuple[str, dict[str, tuple[float, float]]]:
