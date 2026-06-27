@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ladock-desktop"
+version = "2.0.0"
+description = "Open-source molecular docking workstation with PySide6 GUI"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.5",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+rdkit = ["rdkit-pypi"]
+
+[project.scripts]
+ladock = "main:main"
+
+[project.gui-scripts]
+ladock-gui = "main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "core*", "data*", "engine*", "gui*"]
+
+[tool.setuptools.package-data]
+"gui.assets" = ["*.html", "*.js", "*.css"]

@@ -1,0 +1,30 @@
+{
+  "receptor_pdbqt": "/tmp/ladock_ligtest_vazoudox/receptor.pdbqt",
+  "receptor_pdb": "/media/arga/DATA1000/LADOCK/dock/receptor_ready/6K28_prepared.pdb",
+  "rows": [
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_1_dock/rigid/out_vina.pdbqt",
+      "label": "aspirin [rigid/vina]"
+    },
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_2_dock/rigid/out_vina.pdbqt",
+      "label": "atorvastation [rigid/vina]"
+    },
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_3_dock/rigid/out_vina.pdbqt",
+      "label": "curcumin [rigid/vina]"
+    },
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_4_dock/rigid/out_vina.pdbqt",
+      "label": "ibuprofen [rigid/vina]"
+    },
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_5_dock/rigid/out_vina.pdbqt",
+      "label": "lig0 [rigid/vina]"
+    },
+    {
+      "output_path": "/tmp/ladock_ligtest_vazoudox/mol_6_dock/rigid/out_vina.pdbqt",
+      "label": "quercetin [rigid/vina]"
+    }
+  ]
+}

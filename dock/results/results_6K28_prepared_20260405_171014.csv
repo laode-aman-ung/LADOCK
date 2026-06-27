@@ -1,0 +1,10 @@
+Receptor,Ligand,Scoring,Pose,ΔG (kcal/mol),RMSD lb,RMSD ub
+6K28_prepared,TZE,rigid/vina,1,-4.182,0.000,0.000
+6K28_prepared,TZE,rigid/vina,2,-4.111,7.480,8.199
+6K28_prepared,TZE,rigid/vina,3,-4.091,3.006,3.644
+6K28_prepared,TZE,rigid/vina,4,-4.084,7.640,8.226
+6K28_prepared,TZE,rigid/vina,5,-4.071,7.104,8.060
+6K28_prepared,TZE,rigid/vina,6,-4.043,1.815,2.040
+6K28_prepared,TZE,rigid/vina,7,-4.034,7.151,7.924
+6K28_prepared,TZE,rigid/vina,8,-4.020,1.594,2.525
+6K28_prepared,TZE,rigid/vina,9,-3.758,3.281,4.517

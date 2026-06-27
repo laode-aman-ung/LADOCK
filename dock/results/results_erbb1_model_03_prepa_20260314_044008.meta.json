@@ -1,0 +1,42 @@
+{
+  "receptor_pdbqt": "/tmp/ladock_redock_ysxmi4b3/receptor.pdbqt",
+  "receptor_pdb": "/media/arga/DATA1000/LADOCK/dock/receptor_ready/erbb1_model_03_prepared.pdb",
+  "rows": [
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_ysxmi4b3/out_vina.pdbqt",
+      "sf": "vina"
+    }
+  ]
+}

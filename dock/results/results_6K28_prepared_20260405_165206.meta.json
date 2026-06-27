@@ -1,0 +1,42 @@
+{
+  "receptor_pdbqt": "/tmp/ladock_redock_iu58t_cd/receptor.pdbqt",
+  "receptor_pdb": "/mnt/d/LADEEP_LADOCK/LADOCK/dock/receptor_ready/6K28_prepared.pdb",
+  "rows": [
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "/tmp/ladock_redock_iu58t_cd/rigid/out_vina.pdbqt",
+      "sf": "rigid/vina"
+    }
+  ]
+}

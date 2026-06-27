@@ -1,0 +1,42 @@
+{
+  "receptor_pdbqt": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\receptor.pdbqt",
+  "receptor_pdb": "D:\\LADEEP_LADOCK\\LADOCK\\dock\\receptor_ready\\erbb1_model_03_prepared.pdb",
+  "rows": [
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    },
+    {
+      "output_path": "C:\\Users\\laode\\AppData\\Local\\Temp\\ladock_redock_33lr5uit\\rigid\\out_vina.pdbqt",
+      "sf": "rigid/vina"
+    }
+  ]
+}

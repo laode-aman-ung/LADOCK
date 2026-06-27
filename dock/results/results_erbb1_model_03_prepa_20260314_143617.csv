@@ -1,0 +1,10 @@
+Receptor,Ligand,Scoring,Pose,ΔG (kcal/mol),RMSD lb,RMSD ub
+erbb1_model_03_prepared,FMM,rigid/vina,1,-10.250,0.000,0.000
+erbb1_model_03_prepared,FMM,rigid/vina,2,-9.749,1.240,2.038
+erbb1_model_03_prepared,FMM,rigid/vina,3,-9.366,1.796,2.514
+erbb1_model_03_prepared,FMM,rigid/vina,4,-9.105,5.300,7.125
+erbb1_model_03_prepared,FMM,rigid/vina,5,-8.804,6.868,8.511
+erbb1_model_03_prepared,FMM,rigid/vina,6,-8.640,5.556,7.392
+erbb1_model_03_prepared,FMM,rigid/vina,7,-8.601,6.255,8.261
+erbb1_model_03_prepared,FMM,rigid/vina,8,-8.457,6.968,10.411
+erbb1_model_03_prepared,FMM,rigid/vina,9,-8.456,6.867,9.824

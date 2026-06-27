@@ -1,0 +1,38 @@
+# Binary tools (too large for git — install separately)
+bin/
+
+# Website (excluded per user request)
+website/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Runtime output directories
+grids/
+ligand_ready/
+receptor_ready/
+logs/
+
+# Large binary data files
+ligPocket.trg
+*.trg
+
+# Accidental folders
+DLADEEP_LADOCKLADOCK/
+
+# Claude Code
+.claude/
+
+# IDE
+.vscode/
+*.code-workspace
+
+# OS
+Thumbs.db
+.DS_Store

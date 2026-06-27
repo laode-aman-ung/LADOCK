@@ -1,0 +1,39 @@
+loading receptor: /tmp/ladock_ad4_lz6fpwk0/ad4_flex_curcumin/receptor.pdbqt
+loading ligand: /tmp/ladock_ad4_lz6fpwk0/ad4_flex_curcumin/curcumin.pdbqt
+
+set box using user
+    Box center:    22.140    63.360    35.970
+    Box length:    25.000    25.000    25.000
+    Box size  :        68        68        68
+    padding   :     0.000
+    spacing   :     0.375
+
+identifying pockets using AutoSite ....
+    found 9 pocket(s)
+
+    pocket|  energy | # of |Rad. of | energy |   bns    | score  
+    number|         |points|gyration|per vol.|buriedness|v*b^2/rg
+    ------+---------+------+--------+--------+----------+---------
+        1    -90.33   198    3.73     -0.46      0.91      44.19
+        2    -74.45   114    2.81     -0.65      0.93      35.30
+        3    -56.27   112    2.78     -0.50      0.88      31.20
+        4    -74.36   134    3.88     -0.55      0.75      19.62
+        5    -27.29    39    2.28     -0.70      0.94      15.08
+        6    -31.48    66    2.52     -0.48      0.75      14.59
+        7    -11.02    13    1.26     -0.85      0.96       9.51
+        8     -5.10    10    1.07     -0.51      0.71       4.67
+        9     -5.77    11    1.12     -0.52      0.57       3.20
+    merging clusters ...
+done. got 697 fill Points, in 1.25 (sec)
+
+setting map types using: all to ['HS', 'Mg', 'HD', 'NA', 'Fe', 'Br', 'NS', 'A', 'C', 'Mn', 'G', 'F', 'I', 'H', 'J', 'N', 'Q', 'P', 'S', 'GA', 'Z', 'Zn', 'Cl', 'Ca', 'OA', 'SA', 'OS']
+
+computing maps for center=(22.140 63.360 35.970) size=(25.000 25.000 25.000) dims=(68 68 68) ...
+    697 points inside the box
+
+    maps computed in 3.08 (sec)
+Adding gradient to maps ...
+done adding gradient to maps 15.21 (sec)
+making target file ligPocket.trg ...done.
+    done. 21.78 (sec)
+
