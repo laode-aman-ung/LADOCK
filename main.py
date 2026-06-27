@@ -10,7 +10,7 @@ import platform
 
 
 def _configure_qt_runtime():
-    """Prefer software rendering on Linux/WSL so the UI can start without GPU EGL."""
+    """Configure Qt runtime flags for Linux/WSL compatibility."""
     if not sys.platform.startswith("linux"):
         return
 
@@ -18,22 +18,19 @@ def _configure_qt_runtime():
     release = platform.release().lower()
     is_wsl = "microsoft" in release or "wsl" in release or "WSL_DISTRO_NAME" in env
 
-    env.setdefault("QT_OPENGL", "software")
-    env.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
-    env.setdefault("QT_QUICK_BACKEND", "software")
+    # Always disable sandbox for QtWebEngine (required in many containerised/WSL envs)
     env.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
-    env.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "")
 
     if is_wsl:
-        # WSLg often advertises Wayland even when EGL is unavailable for Qt WebEngine.
-        # Forcing XCB avoids the failing Wayland/EGL path on many Ubuntu-on-WSL setups.
+        # WSL: no real GPU — force software rendering and XCB platform.
+        # WSLg advertises Wayland even when EGL is unavailable for Qt WebEngine.
+        env.setdefault("QT_OPENGL", "software")
+        env.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
+        env.setdefault("QT_QUICK_BACKEND", "software")
         env.setdefault("QT_QPA_PLATFORM", "xcb")
 
     chromium_flags = env.get("QTWEBENGINE_CHROMIUM_FLAGS", "").strip()
-    extra_flags = [
-        "--enable-webgl",
-        "--ignore-gpu-blocklist",
-    ]
+    extra_flags = ["--enable-webgl", "--ignore-gpu-blocklist"]
     if is_wsl:
         extra_flags.extend(
             [
@@ -60,7 +57,9 @@ from app.project_manager import WelcomeDialog
 
 def main():
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
-    QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseSoftwareOpenGL, True)
+    # Software OpenGL only when explicitly requested (e.g. set by _configure_qt_runtime for WSL)
+    if os.environ.get("QT_OPENGL") == "software":
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseSoftwareOpenGL, True)
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
