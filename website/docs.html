@@ -80,7 +80,37 @@
 
     <!-- Installation -->
     <section class="docs-section" id="install">
-      <h2>⬇️ Installation</h2>
+      <h2>⬇️ Download installers</h2>
+      <p>Each version ships a separate installer bundling only the engines it needs
+      — no need to download 800&nbsp;MB of binaries for a platform you don't use.
+      Free for non-commercial use until 2030.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:24px 0">
+        <div style="background:var(--mantle);border:1px solid var(--surface0);border-radius:12px;padding:20px">
+          <div style="font-weight:700;font-size:1.05rem">Windows</div>
+          <div style="color:var(--subtext0);font-size:0.85rem;margin:4px 0 12px">Vina, Vinardo · embedded 3D · smallest</div>
+          <a class="btn btn-primary" style="width:100%;justify-content:center" href="https://github.com/laode-aman-ung/LADOCK/releases">Download .exe</a>
+        </div>
+        <div style="background:var(--mantle);border:1px solid var(--surface0);border-radius:12px;padding:20px">
+          <div style="font-weight:700;font-size:1.05rem">Windows · Hybrid</div>
+          <div style="color:var(--subtext0);font-size:0.85rem;margin:4px 0 12px">+ AD4 / AD-GPU via WSL (requires WSL + Ubuntu)</div>
+          <a class="btn btn-primary" style="width:100%;justify-content:center" href="https://github.com/laode-aman-ung/LADOCK/releases">Download .exe</a>
+        </div>
+        <div style="background:var(--mantle);border:1px solid var(--surface0);border-radius:12px;padding:20px">
+          <div style="font-weight:700;font-size:1.05rem">Linux</div>
+          <div style="color:var(--subtext0);font-size:0.85rem;margin:4px 0 12px">All engines native · .deb or AppImage</div>
+          <a class="btn btn-primary" style="width:100%;justify-content:center" href="https://github.com/laode-aman-ung/LADOCK/releases">Download</a>
+        </div>
+        <div style="background:var(--mantle);border:1px solid var(--surface0);border-radius:12px;padding:20px">
+          <div style="font-weight:700;font-size:1.05rem">macOS</div>
+          <div style="color:var(--subtext0);font-size:0.85rem;margin:4px 0 12px">Vina, Vinardo · embedded 3D · .dmg</div>
+          <a class="btn btn-primary" style="width:100%;justify-content:center" href="https://github.com/laode-aman-ung/LADOCK/releases">Download .dmg</a>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-body"><strong>Which one?</strong> On a Windows machine, use <strong>Windows</strong> for Vina/Vinardo, or <strong>Windows · Hybrid</strong> to also run AutoDock4 / AutoDock-GPU through WSL. On Linux you get every engine natively. AutoDock-GPU additionally needs CUDA.</div>
+      </div>
+
+      <h2>⬇️ Install from source</h2>
 
       <h3>Windows</h3>
       <p>Open PowerShell or Command Prompt and run:</p>
@@ -351,7 +381,7 @@ ladock.bat</code></pre>
   <div class="container footer-inner">
     <div class="footer-brand">
       <span class="logo-icon">⬡</span><span class="footer-name">LADOCK Desktop</span>
-      <p>Open-source molecular docking workstation.</p>
+      <p>Professional molecular docking workstation.</p>
     </div>
     <div class="footer-links">
       <div class="footer-col">
@@ -376,7 +406,7 @@ ladock.bat</code></pre>
   </div>
   <div class="footer-bottom">
     <p>© 2024 LADOCK · All rights reserved.</p>
-    <p>LADOCK Desktop is open-source software licensed under the <a href="LICENSE" style="color:var(--blue)">MIT License</a>.</p>
+
   </div>
 </footer>
 

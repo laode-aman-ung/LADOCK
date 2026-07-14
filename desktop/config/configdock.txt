@@ -1,0 +1,67 @@
+# Configuration File Setup Guide:
+# 1. Each line in this file represents a "key: value" pair.
+# 2. Key is the name of the variable that will be used in the program.
+# 3. Value is the setting that should be adjusted according to your needs.
+# 4. Each key and value are separated by a colon (":").
+# 5. If needed, values requiring more than one word should be separated by a comma and space (", ").
+# 6. Comments were added on a line following the pound sign ("#") and will be ignored by the program.
+
+# Configurations:
+
+# Options: Vina, Vinardo, AD4, Vina GPU, Vinardo GPU, AD4 GPU
+sf_types: Vina 
+
+# Options: Rigid, Flexible
+listmode: Rigid 
+
+# Distance of receptor's flexible residues from ligands (in Angstrom)
+distance_of_flexible_residues: 4 
+
+# Set to > 1 if using multiple ligands simultaneous docking methods
+elements: 1 
+
+# Options: combination, or permutation
+arrangement_type: combination 
+
+# Grid box size 
+box_size: 40, 40, 40 
+
+# spacing
+spacing: 0.75 
+
+# n_poses
+n_poses: 5
+
+# exhaustiveness
+exhaustiveness: 10
+
+# Number of CPU cores
+cpu: 2  
+
+# Set to true or false
+parallel_simulation: false 
+
+# Set to true or false
+input_file_saved: false 
+
+# Set to true or false
+output_file_saved: false 
+
+# Vina Path
+vina_path: vina
+
+# Installation path of AD4, and AG4 path
+ad4_path: autodock4
+ag4_path: autogrid4
+
+# Installation path of ADFR
+adfr_path: /home/<user>/ADFRsuite-1.0/bin 
+
+# Installation path of MGLTools
+mgl_path: /home/<user>/MGLTools-1.5.6 
+
+# Installation path of AD4 GPU
+autodockgpu: /path/to/autodockgpu 
+
+# Installation path of Vina GPU
+vinagpu: /path/to/vinagpu 

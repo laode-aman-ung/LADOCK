@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>LADOCK 3D Viewer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; background:#0f1117; overflow:hidden; }
+#viewport { width:100%; height:100%; position:relative; }
+
+/* Loading spinner */
+#loading {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  color:#cdd6f4; font-family:sans-serif; font-size:13px;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  z-index:20;
+}
+.spinner {
+  width:30px; height:30px;
+  border:3px solid #45475a; border-top-color:#89b4fa;
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Left toolbar ────────────────────────────────── */
+#toolbar {
+  position:absolute; top:8px; left:8px;
+  display:flex; flex-direction:column; gap:2px;
+  z-index:10; user-select:none;
+}
+.tb-sep {
+  height:1px; background:#313244; margin:4px 2px;
+}
+.tb-group {
+  color:#585b70; font-size:9px; font-family:sans-serif;
+  text-transform:uppercase; letter-spacing:0.08em;
+  padding:2px 4px 1px;
+}
+.tb-btn {
+  background:rgba(49,50,68,0.88); border:1px solid #45475a;
+  color:#a6adc8; border-radius:4px; padding:3px 8px;
+  cursor:pointer; font-size:11px; font-family:sans-serif;
+  white-space:nowrap; text-align:left;
+  transition:background 0.12s, color 0.12s;
+  min-width:82px;
+}
+.tb-btn:hover { background:rgba(69,71,90,0.95); color:#cdd6f4; }
+.tb-btn.active { background:#89b4fa; color:#1e1e2e; border-color:#89b4fa; font-weight:600; }
+.tb-btn.warn   { background:#f38ba8; color:#1e1e2e; border-color:#f38ba8; }
+
+/* ── Atom info overlay (bottom-left) ──────────────── */
+#info-panel {
+  position:absolute; bottom:30px; left:8px;
+  background:rgba(24,24,37,0.92); border:1px solid #45475a;
+  border-radius:6px; padding:8px 12px;
+  color:#cdd6f4; font-family:monospace; font-size:11px;
+  max-width:280px; display:none; z-index:10; line-height:1.6;
+}
+#info-panel.visible { display:block; }
+#info-title { color:#89b4fa; font-weight:bold; margin-bottom:3px; font-family:sans-serif; }
+#info-close {
+  float:right; cursor:pointer; color:#585b70;
+  font-size:13px; line-height:1; margin-left:8px;
+}
+#info-close:hover { color:#cdd6f4; }
+
+
+/* ── Status bar (bottom strip) ────────────────────── */
+#statusbar {
+  position:absolute; bottom:0; left:0; right:0;
+  height:22px; background:rgba(24,24,37,0.92);
+  border-top:1px solid #313244;
+  color:#585b70; font-family:monospace; font-size:10px;
+  padding:0 8px; line-height:22px; z-index:10;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+#error-panel {
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(15,17,23,0.94);
+  color:#cdd6f4;
+  font-family:sans-serif;
+  z-index:30;
+  text-align:center;
+}
+
+#error-panel.visible { display:flex; }
+
+#error-card {
+  max-width:520px;
+  background:#181825;
+  border:1px solid #313244;
+  border-radius:10px;
+  padding:18px 20px;
+}
+
+#error-card h3 {
+  margin:0 0 8px;
+  color:#f9e2af;
+  font-size:16px;
+}
+
+#error-card p {
+  margin:6px 0;
+  color:#a6adc8;
+  font-size:13px;
+  line-height:1.55;
+}
+</style>
+</head>
+<body>
+
+<div id="viewport">
+  <div id="loading">
+    <div class="spinner"></div>
+    <span>Loading 3D Viewer…</span>
+  </div>
+</div>
+
+<div id="error-panel">
+  <div id="error-card">
+    <h3>3D viewer unavailable</h3>
+    <p id="error-text">WebGL could not be initialized in this session.</p>
+    <p>You can still continue using docking and file-based workflows.</p>
+  </div>
+</div>
+
+<!-- ── Left Toolbar ───────────────────────────────────────── -->
+<div id="toolbar">
+
+  <!-- Representation (protein style) -->
+  <div class="tb-group">Representation</div>
+  <button class="tb-btn active" id="btn-cartoon" onclick="setRepr('cartoon')"  title="Cartoon (secondary structure)">🎗 Cartoon</button>
+  <button class="tb-btn"        id="btn-ribbon"  onclick="setRepr('ribbon')"   title="Ribbon">〰 Ribbon</button>
+  <button class="tb-btn"        id="btn-stick"   onclick="setRepr('stick')"    title="Stick">╫ Stick</button>
+  <button class="tb-btn"        id="btn-sphere"  onclick="setRepr('sphere')"   title="Space-fill spheres">⬤ Sphere</button>
+  <button class="tb-btn"        id="btn-line"    onclick="setRepr('line')"     title="Line (fast)">— Line</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Surface -->
+  <div class="tb-group">Surface</div>
+  <button class="tb-btn"  id="btn-surface"  onclick="toggleSurface()" title="Toggle VDW molecular surface">◎ Surface</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Color scheme -->
+  <div class="tb-group">Color</div>
+  <button class="tb-btn active" id="btn-col-spectrum" onclick="setColor('spectrum')" title="Color by secondary structure (spectrum)">🌈 Spectrum</button>
+  <button class="tb-btn"        id="btn-col-chain"    onclick="setColor('chain')"    title="Color by chain">🔗 Chain</button>
+  <button class="tb-btn"        id="btn-col-elem"     onclick="setColor('elem')"     title="Color by element (CPK)">⚛ Element</button>
+  <button class="tb-btn"        id="btn-col-bfactor"  onclick="setColor('bfactor')"  title="Color by B-factor">🌡 B-factor</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Visibility toggles -->
+  <div class="tb-group">Show</div>
+  <button class="tb-btn active" id="btn-protein" onclick="toggleComp('protein')" title="Show/hide protein">🧬 Protein</button>
+  <button class="tb-btn active" id="btn-ligand"  onclick="toggleComp('ligand')"  title="Show/hide co-crystal ligand">💊 Ligand</button>
+  <button class="tb-btn active" id="btn-water"   onclick="toggleComp('water')"   title="Show/hide water (HOH)">💧 Water</button>
+  <button class="tb-btn active" id="btn-metal"   onclick="toggleComp('metal')"   title="Show/hide metal ions">⚙ Metal</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Camera / Navigation -->
+  <div class="tb-group">Camera</div>
+  <button class="tb-btn" onclick="resetCamera()"   title="Fit all in view">⟳ Reset</button>
+  <button class="tb-btn" onclick="centerLigand()"  title="Center on ligand / docked pose">🎯 Ligand</button>
+  <button class="tb-btn" id="btn-spin" onclick="toggleSpin()" title="Toggle auto-rotation">↻ Spin</button>
+  <button class="tb-btn" onclick="toggleLabels()"  id="btn-labels" title="Toggle residue labels">🏷 Labels</button>
+  <button class="tb-btn" onclick="requestScreenshot()" title="Save screenshot as PNG">📷 Save PNG</button>
+
+</div>
+
+<!-- ── Atom info overlay ────────────────────────────────────── -->
+<div id="info-panel">
+  <span id="info-close" onclick="hideAtomInfo()">✕</span>
+  <div id="info-title">Atom Info</div>
+  <div id="info-body"></div>
+</div>
+
+
+<!-- ── Status bar ──────────────────────────────────────────── -->
+<div id="statusbar">No molecules loaded.</div>
+
+<!-- 3Dmol.js -->
+<script src="3Dmol-min.js"></script>
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+var viewer         = null;
+var _recModel      = null;  // receptor
+var _ligModel      = null;  // co-crystal ligand / docked pose
+var _recData       = null;
+var _ligData       = null;
+var _recFmt        = 'pdbqt';
+var _ligFmt        = 'pdbqt';
+var _hbonds        = [];
+var _bondShapes    = [];  // cylinder/arrow shape handles → removed with viewer.removeShape
+var _bondLabels    = [];  // label handles               → removed with viewer.removeLabel
+var _resLabels     = [];  // residue label handles from _applyStyles
+
+var _repr          = 'cartoon';    // current protein representation
+var _colorScheme   = 'spectrum';   // current protein color
+var _showSurface   = false;
+var _spinning      = false;
+var _showLabels    = false;
+var _compVis       = { protein:true, ligand:true, water:true, metal:true };
+
+var _METALS = new Set(['ZN','MG','CA','FE','MN','CU','NI','CO','MO','NA','K',
+                       'CD','HG','PT','AU','AG','AL','BA','SR','PB','BI','CS',
+                       'LI','RB','IN','CR','V','W']);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function initViewer() {
+  document.getElementById('loading').style.display = 'none';
+  try {
+    viewer = $3Dmol.createViewer(document.getElementById('viewport'), {
+      backgroundColor: '#0f1117',
+      antialias: true,
+      defaultcolors: $3Dmol.elementColors.rasmol
+    });
+    if (!viewer) throw new Error('3Dmol returned no viewer instance.');
+    viewer.setClickable({}, true, function(atom) { showAtomInfo(atom); });
+    if (_recData) _doLoadReceptor(_recData, _recFmt);
+    if (_ligData) _doLoadLigand(_ligData, _ligFmt);
+  } catch (err) {
+    showViewerError(err);
+  }
+}
+
+function showViewerError(err) {
+  viewer = null;
+  var text = 'WebGL could not be initialized in this session.';
+  if (err && err.message) {
+    text += ' ' + err.message;
+  }
+  document.getElementById('error-text').textContent = text;
+  document.getElementById('error-panel').classList.add('visible');
+  setStatus('3D viewer unavailable: WebGL initialization failed.');
+}
+
+// ── Public API (called from Python via runJavaScript) ──────────────────────
+
+function loadReceptor(data, fmt) {
+  _recData = data; _recFmt = fmt || 'pdbqt';
+  if (viewer) _doLoadReceptor(data, _recFmt);
+}
+
+function loadLigand(data, fmt) {
+  _ligData = data; _ligFmt = fmt || 'pdbqt';
+  if (viewer) _doLoadLigand(data, _ligFmt);
+}
+
+function clearAll() {
+  if (!viewer) return;
+  viewer.clear();
+  _recModel = _ligModel = null;
+  _recData  = _ligData  = null;
+  _hbonds   = [];
+  _bondShapes = []; _bondLabels = []; _resLabels = [];
+  hideAtomInfo();
+  viewer.render();
+  setStatus('Scene cleared.');
+}
+
+var _pocketShapes = [];
+function clearPocket() {
+  if (!viewer) return;
+  _pocketShapes.forEach(function(s){ try{ viewer.removeShape(s); }catch(e){} });
+  _pocketShapes = [];
+  viewer.render();
+}
+function highlightPocket(cx, cy, cz, sx, sy, sz) {
+  if (!viewer) return;
+  _pocketShapes.forEach(function(s){ try{ viewer.removeShape(s); }catch(e){} });
+  _pocketShapes = [];
+  var hx = sx/2, hy = sy/2, hz = sz/2;
+  var c = [];
+  for (var i = 0; i < 8; i++) {
+    c.push({
+      x: cx + ((i & 1) ? hx : -hx),
+      y: cy + ((i & 2) ? hy : -hy),
+      z: cz + ((i & 4) ? hz : -hz)
+    });
+  }
+  var edges = [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  var col = '#ffd23f';   // bright gold — high contrast against spectrum protein
+  edges.forEach(function(e) {
+    _pocketShapes.push(viewer.addCylinder({
+      start: c[e[0]], end: c[e[1]], radius: 0.25,
+      color: col, fromCap: 2, toCap: 2
+    }));
+  });
+  // Faint translucent fill so the search volume reads as a box, not just edges.
+  _pocketShapes.push(viewer.addBox({
+    center: {x:cx, y:cy, z:cz}, dimensions: {w:sx, h:sy, d:sz},
+    color: col, opacity: 0.10
+  }));
+  viewer.render();
+}
+
+function clearBonds() {
+  if (!viewer) return;
+  _bondShapes.forEach(function(s){ try{ viewer.removeShape(s); }catch(e){} });
+  _bondLabels.forEach(function(l){ try{ viewer.removeLabel(l); }catch(e){} });
+  _bondShapes = []; _bondLabels = [];
+}
+
+// Bond type → color mapping (matches interaction_panel.py ITYPE_COLORS)
+var _BOND_COLORS = {
+  'H-Bond':       '#4fc3f7',
+  'Hydrophobic':  '#ffb74d',
+  'Pi-Stacking':  '#ce93d8',
+  'Salt Bridge':  '#ef5350',
+  'Halogen Bond': '#80cbc4',
+};
+
+function showHBonds(bonds) {
+  // bonds: [{start:{x,y,z}, end:{x,y,z}, itype?, color?, rec_resn?, rec_resi?, rec_chain?}]
+  if (!viewer) return;
+  clearBonds();
+  bonds.forEach(function(b) {
+    var color  = b.color || _BOND_COLORS[b.itype] || '#44ff88';
+    var dashed = !b.itype || b.itype === 'H-Bond' || b.itype === 'Halogen Bond';
+    var shape = viewer.addCylinder({
+      start: b.start, end: b.end,
+      radius: 0.06, color: color,
+      dashed: dashed, fromCap: 1, toCap: 1
+    });
+    _bondShapes.push(shape);
+  });
+  viewer.render();
+  setStatus('Showing ' + bonds.length + ' interaction bond(s).');
+}
+
+/**
+ * Discovery Studio-style interaction view:
+ * - Protein as semi-transparent cartoon
+ * - Pocket residues highlighted as colored sticks with labels
+ * - Ligand as balls+sticks (orange)
+ * - Colored bond cylinders per interaction type
+ * bonds: [{start, end, itype, color, rec_resn, rec_resi, rec_chain, distance}, ...]
+ */
+function showInteractionHighlights(bonds) {
+  if (!viewer) return;
+  try {
+    // Use a conservative highlight mode here. The richer 3Dmol styling path
+    // can recurse badly in some Qt WebEngine builds on Windows.
+    if (_recModel) {
+      _recModel.setStyle({}, {});
+      _recModel.setStyle({hetflag:false}, {cartoon:{opacity:0.55, color:'spectrum'}});
+      _recModel.setStyle({resn:'HOH'}, {});
+    }
+
+    if (_ligModel) {
+      _ligModel.setStyle({}, {
+        stick:  {radius:0.22, colorscheme:'orangeCarbon'},
+        sphere: {radius:0.28, colorscheme:'orangeCarbon'}
+      });
+    }
+
+    _resLabels.forEach(function(l){ try{ viewer.removeLabel(l); }catch(e){} });
+    _resLabels = [];
+    clearBonds();
+    showHBonds(bonds || []);
+    centerLigand();
+    viewer.render();
+    setStatus('Interaction view: ' + (bonds ? bonds.length : 0) + ' bond(s).');
+  } catch (err) {
+    clearBonds();
+    setStatus('Interaction highlight fallback active.');
+    console.error('Interaction highlight error:', err);
+  }
+}
+
+// ── Representation ─────────────────────────────────────────────────────────
+
+function setRepr(repr) {
+  _repr = repr;
+  ['cartoon','ribbon','stick','sphere','line'].forEach(function(r) {
+    var el = document.getElementById('btn-' + r);
+    if (el) el.classList.toggle('active', r === repr);
+  });
+  _applyStyles();
+}
+
+function setColor(scheme) {
+  _colorScheme = scheme;
+  ['spectrum','chain','elem','bfactor'].forEach(function(s) {
+    var el = document.getElementById('btn-col-' + s);
+    if (el) el.classList.toggle('active', s === scheme);
+  });
+  _applyStyles();
+}
+
+function toggleSurface() {
+  _showSurface = !_showSurface;
+  document.getElementById('btn-surface').classList.toggle('active', _showSurface);
+  _applyStyles();
+}
+
+function toggleComp(comp) {
+  _compVis[comp] = !_compVis[comp];
+  document.getElementById('btn-' + comp).classList.toggle('active', _compVis[comp]);
+  _applyStyles();
+}
+
+function resetCamera() {
+  if (!viewer) return;
+  viewer.zoomTo(); viewer.render();
+}
+
+function centerLigand() {
+  if (!viewer || !_ligModel) return;
+  viewer.zoomTo(_ligModel); viewer.render();
+}
+
+function toggleSpin() {
+  _spinning = !_spinning;
+  document.getElementById('btn-spin').classList.toggle('active', _spinning);
+  if (_spinning) viewer.spin('y', 0.4); else viewer.spin(false);
+}
+
+function toggleLabels() {
+  _showLabels = !_showLabels;
+  document.getElementById('btn-labels').classList.toggle('active', _showLabels);
+  _applyStyles();
+}
+
+// ── Style application ──────────────────────────────────────────────────────
+
+function _colorSpec(forLig) {
+  // Returns 3Dmol colorscheme object based on _colorScheme
+  if (forLig) return {colorscheme:'orangeCarbon'};
+  if (_colorScheme === 'spectrum')  return {color:'spectrum'};
+  if (_colorScheme === 'chain')     return {colorscheme:'chainHetatm'};
+  if (_colorScheme === 'elem')      return {colorscheme:'Jmol'};
+  if (_colorScheme === 'bfactor')   return {colorscheme:{prop:'b',gradient:'rwb',min:0,max:100}};
+  return {color:'spectrum'};
+}
+
+function _reprStyle(extra) {
+  // Build protein representation style object
+  var cs = _colorSpec(false);
+  if (_repr === 'cartoon') return Object.assign({cartoon:{opacity:0.9}}, cs.color ? {cartoon:{opacity:0.9,color:cs.color}} : {cartoon:{opacity:0.9,colorscheme:cs.colorscheme}});
+  if (_repr === 'ribbon')  return {ribbon: Object.assign({opacity:0.9}, _colorSpec(false).color ? {color:_colorSpec(false).color} : {colorscheme:_colorSpec(false).colorscheme})};
+  if (_repr === 'stick')   return {stick:  Object.assign({radius:0.15}, _colorSpec(false).colorscheme ? {colorscheme:_colorSpec(false).colorscheme} : {color:_colorSpec(false).color||'spectrum'})};
+  if (_repr === 'sphere')  return {sphere: Object.assign({radius:0.4},  _colorSpec(false).colorscheme ? {colorscheme:_colorSpec(false).colorscheme} : {color:_colorSpec(false).color||'spectrum'})};
+  if (_repr === 'line')    return {line:   Object.assign({linewidth:1.5},_colorSpec(false).colorscheme ? {colorscheme:_colorSpec(false).colorscheme} : {color:_colorSpec(false).color||'spectrum'})};
+  return {cartoon:{opacity:0.9,color:'spectrum'}};
+}
+
+function _applyStyles() {
+  if (!viewer) return;
+
+  // ── Receptor ────────────────────────────────────────────────────────────
+  if (_recModel) {
+    _recModel.setStyle({}, {});  // reset
+
+    // Protein backbone
+    if (_compVis.protein) {
+      _recModel.setStyle({hetflag:false}, _reprStyle());
+    }
+
+    // Water
+    if (_compVis.water) {
+      _recModel.setStyle({resn:'HOH'}, {sphere:{radius:0.22, color:'#44aaff', opacity:0.7}});
+    }
+
+    // HETATM in receptor (native ligand, cofactors) — controlled by Ligand toggle
+    // Apply to all HETATM first; water/metal override below
+    if (_compVis.ligand) {
+      _recModel.setStyle(
+        {hetflag:true},
+        {stick:{radius:0.14, colorscheme:'Jmol'}, sphere:{radius:0.20, colorscheme:'Jmol'}}
+      );
+    }
+
+    // Water overrides HETATM style
+    if (_compVis.water) {
+      _recModel.setStyle({resn:'HOH'}, {sphere:{radius:0.22, color:'#44aaff', opacity:0.7}});
+    } else {
+      _recModel.setStyle({resn:'HOH'}, {});
+    }
+
+    // Metal ions — iterate each element (3Dmol elem selector requires single string)
+    if (_compVis.metal) {
+      _METALS.forEach(function(el) {
+        _recModel.setStyle({elem:el}, {sphere:{radius:0.55, colorscheme:'Jmol', opacity:0.95}});
+      });
+    }
+
+    // Residue labels (protein only) — clear previous then re-add via viewer.addLabel
+    _resLabels.forEach(function(l){ try{ viewer.removeLabel(l); }catch(e){} });
+    _resLabels = [];
+    if (_showLabels && _compVis.protein && _recModel) {
+      try {
+        var atoms = _recModel.selectedAtoms({hetflag:false, atom:'CA'});
+        atoms.forEach(function(a) {
+          var lbl = viewer.addLabel((a.resn||'') + a.resi, {
+            position: {x:a.x, y:a.y, z:a.z},
+            backgroundColor: 'rgba(30,30,46,0.6)',
+            fontColor: '#cdd6f4',
+            fontSize: 10,
+            borderRadius: 2,
+            inFront: false
+          });
+          _resLabels.push(lbl);
+        });
+      } catch(e) { /* label support unavailable */ }
+    }
+
+    // Surface
+    viewer.removeAllSurfaces();
+    if (_showSurface && _compVis.protein) {
+      viewer.addSurface($3Dmol.SurfaceType.VDW, {
+        opacity:0.55,
+        colorscheme: _colorScheme === 'bfactor'
+          ? {prop:'b', gradient:'rwb', min:0, max:100}
+          : (_colorScheme === 'elem' ? 'Jmol' : 'spectrum')
+      }, {model:_recModel, hetflag:false});
+    }
+  }
+
+  // ── Ligand / pose ────────────────────────────────────────────────────────
+  if (_ligModel) {
+    if (_compVis.ligand) {
+      _ligModel.setStyle({}, {
+        stick:  {radius:0.20, colorscheme:'orangeCarbon'},
+        sphere: {radius:0.30, colorscheme:'orangeCarbon'}
+      });
+    } else {
+      _ligModel.setStyle({}, {});
+    }
+  }
+
+  viewer.render();
+}
+
+// ── Internal load helpers ─────────────────────────────────────────────────
+
+// Rebuild the whole scene from stored data. Surgically removing a single model
+// (viewer.removeModel) can leave surfaces/labels/shapes pointing at freed data,
+// which crashes the next render when switching structures. A full reset from the
+// cached receptor/ligand data is the safe way to swap molecules.
+function _rebuildScene() {
+  if (!viewer) return false;
+  try { viewer.removeAllSurfaces(); } catch (e) {}
+  try { viewer.removeAllLabels();   } catch (e) {}
+  try { viewer.removeAllShapes();   } catch (e) {}
+  try { viewer.removeAllModels();   } catch (e) {}
+  _recModel = _ligModel = null;
+  _bondShapes = []; _bondLabels = []; _resLabels = [];
+
+  var ok = true;
+  if (_recData) {
+    try { _recModel = viewer.addModel(_recData, _recFmt || 'pdbqt'); }
+    catch (e) { ok = false; setStatus('Receptor load error: ' + (e && e.message ? e.message : e)); }
+  }
+  if (_ligData) {
+    try { _ligModel = viewer.addModel(_ligData, _ligFmt || 'pdbqt'); }
+    catch (e) { ok = false; setStatus('Ligand load error: ' + (e && e.message ? e.message : e)); }
+  }
+  try { _applyStyles(); }
+  catch (e) { try { viewer.render(); } catch (e2) {} }
+  return ok;
+}
+
+function _doLoadReceptor(data, fmt) {
+  _recData = data; _recFmt = fmt || 'pdbqt';
+  if (!_rebuildScene()) return;
+  try { viewer.zoomTo(); } catch (e) {}
+  setStatus('Receptor loaded  (' + data.split('\n').length + ' lines)');
+}
+
+function _doLoadLigand(data, fmt) {
+  _ligData = data; _ligFmt = fmt || 'pdbqt';
+  if (!_rebuildScene()) return;
+  try { viewer.zoomTo(_ligModel || undefined); } catch (e) {}
+  setStatus('Ligand loaded  — click 🎯 Ligand to re-center');
+}
+
+// ── Atom info ─────────────────────────────────────────────────────────────
+
+function showAtomInfo(atom) {
+  var body = document.getElementById('info-body');
+  body.innerHTML =
+    '<b>Atom:</b> '    + (atom.atom  || '?') + '<br>' +
+    '<b>Residue:</b> ' + (atom.resn  || '?') + '&nbsp;' + (atom.resi||'') + '<br>' +
+    '<b>Chain:</b> '   + (atom.chain || '?') + '<br>' +
+    '<b>Element:</b> ' + (atom.elem  || '?') + '<br>' +
+    '<b>XYZ:</b> ('    +
+      (atom.x?atom.x.toFixed(2):'?') + ', ' +
+      (atom.y?atom.y.toFixed(2):'?') + ', ' +
+      (atom.z?atom.z.toFixed(2):'?') + ')';
+  document.getElementById('info-panel').classList.add('visible');
+}
+
+function hideAtomInfo() {
+  document.getElementById('info-panel').classList.remove('visible');
+}
+
+// ── Status bar ────────────────────────────────────────────────────────────
+
+function setStatus(msg) {
+  document.getElementById('statusbar').textContent = msg;
+}
+
+function requestScreenshot() {
+  // Signal to Python that screenshot is requested via a flag variable
+  // Python polls: viewer.page().runJavaScript("viewer ? viewer.pngURI() : null", cb)
+  if (!viewer) { setStatus('No scene to capture.'); return; }
+  window._screenshotRequested = true;
+  setStatus('📷 Preparing screenshot…');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+if (typeof $3Dmol !== 'undefined') { initViewer(); }
+else {
+  window.addEventListener('DOMContentLoaded', function() {
+    if (typeof $3Dmol === 'undefined') {
+      showViewerError(new Error('3Dmol.js failed to load.'));
+      return;
+    }
+    initViewer();
+  });
+}
+</script>
+</body>
+</html>

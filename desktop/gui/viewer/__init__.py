@@ -1,0 +1,1 @@
+from gui.viewer.molecular_viewer import MolecularViewerPanel

@@ -1,0 +1,99 @@
+name: Build installers
+
+# Produces the four LADOCK installers on real per-OS runners:
+#   Windows  → .exe (native + hybrid, Inno Setup)
+#   Linux    → .deb + .AppImage
+#   macOS    → .dmg
+# Trigger manually or on a version tag.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+defaults:
+  run:
+    working-directory: desktop
+
+jobs:
+  # ── Windows: native + hybrid ────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        variant: [windows, windows-hybrid]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Fetch bundled binaries (native)
+        run: python packaging/fetch_binaries.py windows
+      - name: Fetch bundled binaries (Linux for hybrid)
+        if: matrix.variant == 'windows-hybrid'
+        run: python packaging/fetch_binaries.py linux
+      - name: Install deps
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Stage + freeze
+        run: python packaging/build_release.py ${{ matrix.variant }}
+      - name: Build installer (Inno Setup)
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DVariant=${{ matrix.variant }} `
+            "/DSourceDir=build\dist-${{ matrix.variant }}\LADOCK" `
+            packaging\windows\ladock.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ladock-${{ matrix.variant }}
+          path: desktop/build/installers/*.exe
+
+  # ── Linux: deb + AppImage ───────────────────────────────────────────────
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Fetch bundled binaries
+        run: python packaging/fetch_binaries.py linux
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libxcb-cursor0 fuse
+          python -m pip install -r requirements.txt pyinstaller
+          curl -L -o /usr/local/bin/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /usr/local/bin/appimagetool
+      - name: Stage + freeze
+        run: python packaging/build_release.py linux
+      - name: Build .deb + AppImage
+        run: |
+          bash packaging/linux/build_deb.sh build/dist-linux/LADOCK linux
+          bash packaging/linux/build_appimage.sh build/dist-linux/LADOCK linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ladock-linux
+          path: |
+            desktop/build/installers/*.deb
+            desktop/build/installers/*.AppImage
+
+  # ── macOS: dmg ──────────────────────────────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Fetch bundled binaries
+        run: python packaging/fetch_binaries.py mac
+      - name: Install deps
+        run: |
+          python -m pip install -r requirements.txt pyinstaller
+          brew install create-dmg || true
+      - name: Stage + freeze
+        run: python packaging/build_release.py mac
+      - name: Build .dmg
+        run: bash packaging/macos/build_dmg.sh "build/dist-mac/LADOCK.app" || \
+             bash packaging/macos/build_dmg.sh "build/dist-mac/LADOCK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ladock-mac
+          path: desktop/build/installers/*.dmg
