@@ -1,7 +1,0 @@
-#,Receptor,Ligand [SF],Best ΔG (kcal/mol),RMSD lb,RMSD ub
-1,erbb1_model_03_prepared,aspirin [rigid/vina],-6.439,0.000,0.000
-2,erbb1_model_03_prepared,atorvastation [rigid/vina],-8.956,0.000,0.000
-3,erbb1_model_03_prepared,curcumin [rigid/vina],-8.108,0.000,0.000
-4,erbb1_model_03_prepared,ibuprofen [rigid/vina],-6.840,0.000,0.000
-5,erbb1_model_03_prepared,lig0 [rigid/vina],-8.667,0.000,0.000
-6,erbb1_model_03_prepared,quercetin [rigid/vina],-8.749,0.000,0.000

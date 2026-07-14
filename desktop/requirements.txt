@@ -1,0 +1,22 @@
+# LADOCK Desktop — Python dependencies
+# Install with:  pip install -r requirements.txt
+# Or (editable):  pip install -e .
+
+PySide6>=6.5
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+
+# Required — molecular preparation engine (fix/sanitize, add H, Gasteiger
+# charges, ligand embed/optimize) and 2D SMILES depiction all use RDKit.
+rdkit>=2023.3
+
+# Required — native, cross-platform receptor/ligand PDBQT preparation.
+# Replaces MGLTools (prepare_receptor4/prepare_ligand4) so docking runs on
+# native Windows, Linux and macOS without WSL.  gemmi is a Meeko runtime dep.
+meeko>=0.5
+gemmi>=0.6
+
+# Optional — embedded 3D viewer (required on distro packages that split Qt WebEngine)
+# If the 3D viewer opens in your browser instead of the app, install this:
+# PySide6-WebEngine>=6.5
