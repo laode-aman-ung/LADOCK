@@ -26,15 +26,15 @@ def main():
 
     # Pilih jenis lisensi
     print("Jenis Lisensi:")
-    print("  1. Academic Free      (gratis untuk semua s/d 2030-12-31)")
-    print("  2. Academic Discount  (diskon pasca-2030)")
+    print("  1. Academic Free      (gratis untuk semua s/d 2029-12-31)")
+    print("  2. Academic Discount  (diskon pasca-2029)")
     print("  3. Commercial         (berbayar, perpetual)")
     print()
 
     choice = input("Pilih [1/2/3]: ").strip()
     if choice == "1":
         ltype   = LicenseType.ACADEMIC_FREE
-        expires = "2030-12-31"
+        expires = "2029-12-31"
     elif choice == "2":
         ltype = LicenseType.ACADEMIC_DISCOUNT
         print()

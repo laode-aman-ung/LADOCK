@@ -139,13 +139,13 @@ _CITATION_HTML = """
 _LICENSE = """LADOCK Desktop Software License
 Copyright (c) 2024 La Ode Aman — All rights reserved.
 
-ACADEMIC FREE LICENSE (2024 – 2030)
+ACADEMIC FREE LICENSE (2024 – 2029)
   Free for everyone for non-commercial use — research, study,
   teaching, and evaluation.
   No registration, institutional email, or license key required.
-  Valid until: December 31, 2030.
+  Valid until: December 31, 2029.
 
-ACADEMIC DISCOUNT (Post-2030)
+ACADEMIC DISCOUNT (Post-2029)
   Discounted institutional license after the free period.
   Contact: laode_aman@ung.ac.id
 

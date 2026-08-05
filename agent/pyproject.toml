@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ladock-agent"
+version = "2.0.0"
+description = "LADOCK rule-based (non-LLM) molecular docking CLI agent"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Academic License" }
+authors = [{ name = "La Ode Aman" }]
+# No hard dependencies: heavy libraries (RDKit / Meeko / gemmi) are imported
+# lazily only when a code path needs them, and docking binaries come from the
+# bundled bin/ tree or PATH. This keeps `pip install` fast and side-effect-free.
+dependencies = []
+
+[project.scripts]
+ladock = "ladock_agent:main"
+ladock-agent = "ladock_agent:main"
+
+[tool.setuptools]
+# Single-module distribution: install ladock_agent.py as a top-level module and
+# expose it through the console scripts above. An editable install keeps
+# __file__ pointing at this source tree, so the agent still resolves REPO_ROOT
+# and the bundled desktop/bin binaries correctly from any working directory.
+py-modules = ["ladock_agent"]

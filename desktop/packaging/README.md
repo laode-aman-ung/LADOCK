@@ -46,12 +46,63 @@ installers are produced on CI:
 ```
 Run it via *Actions → Build installers → Run workflow*, or push a `v*` tag.
 
-## Providing the binaries
+## Providing the binaries (use YOUR validated `bin/`, not upstream)
 
-`bin/` (≈800 MB) is **not** committed to git. Before building a real release,
-populate `desktop/bin/<platform>/` (from your archive, a private release asset,
-Git LFS, or by downloading each engine from upstream). The CI workflow has a
-`Fetch bundled binaries` step to wire this up.
+`bin/` (≈800 MB) is **not** committed to git. The build uses the exact binaries
+you already validated — it does **not** re-download engines from Scripps/apt/etc.
+(too fragile). The flow is: package your local `bin/` once, host the archives,
+and let CI pull them.
+
+**1. Package (run once, on your machine that has the full `bin/`):**
+```bash
+python packaging/package_binaries.py           # → build/bin-archives/bin-<platform>.tar.gz
+```
+Each archive has a top-level `<platform>/` folder; exec bits are forced for
+linux/mac so they work even when packaged from Windows.
+
+**2. Host** the three archives on your storage / download host, e.g.
+`https://ladock.ladeep.id/bin/bin-windows.tar.gz` (or a private bucket).
+
+**3. Fetch** (CI runs this automatically before each build):
+```bash
+python packaging/fetch_binaries.py <platform>   # downloads + extracts your archive
+```
+Configure the location with repo secrets (both optional; default base
+`https://ladock.ladeep.id/bin`):
+- `LADOCK_BIN_BASE_URL` — base URL of your archives
+- `LADOCK_BIN_TOKEN` — bearer token for private storage
+
+`build_release.py` prunes ADFRsuite at stage time, so your hosted `bin-linux`
+archive may include it or not — either works.
+
+## Hosting the downloads (self-hosted)
+
+Downloads are served from **your own host / cloud** (domain `ladock.ladeep.id`),
+not GitHub. The website links (`website/docs.html` → download cards) point to:
+
+```
+https://ladock.ladeep.id/downloads/LADOCK-2.0.0-windows-setup.exe
+https://ladock.ladeep.id/downloads/LADOCK-2.0.0-windows-hybrid-setup.exe
+https://ladock.ladeep.id/downloads/ladock-desktop_2.0.0_linux_amd64.deb
+https://ladock.ladeep.id/downloads/LADOCK-2.0.0-linux-x86_64.AppImage
+https://ladock.ladeep.id/downloads/LADOCK-2.0.0-mac.dmg
+```
+
+So serve the built installers at `https://ladock.ladeep.id/downloads/` — either as
+real files under that path, or by pointing it at your object storage/CDN. Two ways
+to populate it:
+
+1. **Manual** — download the CI artifacts and upload them to `…/downloads/`.
+2. **Automatic** — the CI `publish` job uploads every installer via **rclone** to
+   your storage. Set two repo secrets:
+   - `LADOCK_UPLOAD_REMOTE` — e.g. `r2:my-bucket/downloads`
+   - `RCLONE_CONFIG_B64` — base64 of your `rclone.conf` (S3 / Cloudflare R2 /
+     Backblaze B2 / SFTP / WebDAV / …)
+   Then serve that bucket/dir at the site's `/downloads/` (or change the links to
+   absolute URLs if the files live on a different domain/CDN).
+
+Keep the installer filenames in sync with the download links (versioned as
+`2.0.0`); bump both when you release a new version.
 
 ## Status / caveats
 

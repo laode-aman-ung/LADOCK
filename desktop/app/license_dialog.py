@@ -165,7 +165,7 @@ class LicenseDialog(QDialog):
         footer = QLabel(
             "LADOCK is <b>free for everyone for non-commercial use</b> — no key or "
             "registration required — until "
-            "<b style='color:#a6e3a1'>December 31, 2030</b>.<br/>"
+            "<b style='color:#a6e3a1'>December 31, 2029</b>.<br/>"
             "Commercial (for-profit) use needs a paid license: email "
             "<b>laode_aman@ung.ac.id</b> (subject <i>LADOCK Commercial License</i>)."
         )

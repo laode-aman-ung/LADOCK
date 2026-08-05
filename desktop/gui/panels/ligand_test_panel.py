@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import itertools
 import tempfile
 import datetime
 import uuid
@@ -510,6 +511,44 @@ class _LigandDockingWorker(QObject):
         return fld_path, gpf_path
 
     # ------------------------------------------------------------------ #
+    def _dock_vina_run(self, receptor: str, lig_pdbqts: list, sf: str,
+                       mode_dir: str, use_flex: bool, flex, label: str) -> str | None:
+        """Run one Vina/Vinardo docking. ``lig_pdbqts`` may contain several
+        ligands docked simultaneously in one pocket (MLSD). Returns the output
+        PDBQT path on success, else None."""
+        p = self._p
+        out_pdbqt = os.path.join(mode_dir, f'out_{sf}.pdbqt')
+        self.progress.emit(
+            f"Docking {label} — {sf} ({'flex' if use_flex else 'rigid'})…")
+        cmd = [
+            p['vina_path'],
+            '--receptor',   receptor,
+            '--ligand',     *lig_pdbqts,
+            '--scoring',    sf,
+            '--center_x',   str(p['cx']),
+            '--center_y',   str(p['cy']),
+            '--center_z',   str(p['cz']),
+            '--size_x',     str(p['sx']),
+            '--size_y',     str(p['sy']),
+            '--size_z',     str(p['sz']),
+            '--exhaustiveness', str(p.get('exhaustiveness', 8)),
+            '--num_modes',      str(p.get('n_poses', 9)),
+            '--energy_range',   str(p.get('energy_range', 3)),
+            '--cpu',            str(p.get('cpu', 4)),
+            '--out',            out_pdbqt,
+        ]
+        seed = p.get('seed', 0)
+        if seed:
+            cmd += ['--seed', str(seed)]
+        if use_flex and flex:
+            cmd += ['--flex', flex]
+        self._run_cmd(cmd, f"Vina ({sf}) — {label}")
+        if os.path.isfile(out_pdbqt):
+            return out_pdbqt
+        self.log.emit(f"⚠ No output for {label} [{sf}]")
+        return None
+
+    # ------------------------------------------------------------------ #
     @Slot()
     def run(self):
         p   = self._p
@@ -535,7 +574,12 @@ class _LigandDockingWorker(QObject):
 
             results: list[dict] = []
             n_failed = 0
-            total_mols = 0
+            listmode = p.get('listmode', ['rigid'])
+
+            # ── Phase 1: convert every ligand file to PDBQT (collect all) ──
+            # MLSD needs the whole library up-front to form ligand groups, so we
+            # convert everything first instead of docking inside the stream.
+            all_mols: list[dict] = []
             for file_idx, lig_path in enumerate(lig_files, start=1):
                 input_name = os.path.basename(lig_path)
                 self.log.emit(
@@ -543,172 +587,206 @@ class _LigandDockingWorker(QObject):
                     f"  Converting [{file_idx}/{len(lig_files)}]: {input_name}")
                 had_molecule = False
                 try:
-                    mol_iter = self._iter_convert_ligand(lig_path, tmp, file_idx)
-                    for mol_info in mol_iter:
+                    for mol_info in self._iter_convert_ligand(lig_path, tmp, file_idx):
                         had_molecule = True
-                        total_mols += 1
-                        mol_name = mol_info["name"]
-                        lig_pdbqt = mol_info["pdbqt_path"]
-                        mol_smiles = mol_info.get("smiles", "")
-                        source_path = mol_info.get("source_path", "")
+                        all_mols.append(mol_info)
                         self.log.emit(
-                            f"\n{'─'*50}\n"
-                            f"  Molecule [{total_mols}]: {mol_name}")
-                        lig_tmp = os.path.join(tmp, f'mol_{total_mols}_dock')
-                        os.makedirs(lig_tmp, exist_ok=True)
+                            f"  ✔ Prepared molecule [{len(all_mols)}]: {mol_info['name']}")
+                except RuntimeError as e:
+                    self.log.emit(f"⚠ Skipping {input_name}: {e}")
+                    continue
+                if not had_molecule:
+                    self.log.emit(f"⚠ Skipping {input_name}: no molecules were converted")
+                    continue
+                self.progress_pct.emit(int(file_idx * 100 / len(lig_files)))
 
-                        lig_name = mol_name
-                        idx = total_mols
+            if not all_mols:
+                raise RuntimeError("No ligands could be prepared to PDBQT.")
+            total_mols = len(all_mols)
 
-                        try:
-                            listmode = p.get('listmode', ['rigid'])
-                            for mode in listmode:
-                                use_flex = (mode == 'flexible' and flex_pdbqt and rigid_pdbqt)
-                                _flex    = flex_pdbqt  if use_flex else None
-                                _rigid   = rigid_pdbqt if use_flex else None
-                                mode_dir = os.path.join(lig_tmp, mode)
-                                os.makedirs(mode_dir, exist_ok=True)
+            # ── Resolve engine sets + MLSD state ──
+            vina_sfs     = [s for s in sf_types if s in ('vina', 'vinardo')]
+            ad4_needed   = 'ad4'    in sf_types
+            adgpu_needed = 'ad4gpu' in sf_types
+            # 'elements' arrives as e.g. ['3']; tolerate int / str / list.
+            _elem = p.get('elements', 1)
+            if isinstance(_elem, (list, tuple)):
+                _elem = _elem[0] if _elem else 1
+            try:
+                mlsd_n = int(_elem)
+            except (ValueError, TypeError):
+                mlsd_n = 1
+            arrangement = str(p.get('arrangement_type', 'combination')).lower()
+            # MLSD (Multiple-Ligand Simultaneous Docking) is Vina/Vinardo-only
+            # and needs at least N ligands in the library.
+            mlsd_active = mlsd_n > 1 and bool(vina_sfs) and total_mols >= mlsd_n
 
-                                for sf in [s for s in sf_types if s in ('vina', 'vinardo')]:
-                                    out_pdbqt = os.path.join(mode_dir, f'out_{sf}.pdbqt')
-                                    self.progress.emit(
-                                        f"Docking {lig_name} — {sf} "
-                                        f"({'flex' if use_flex else 'rigid'})…")
+            # ── Phase 2a: MLSD — dock N ligands together via Vina/Vinardo ──
+            if mlsd_active:
+                gen = (itertools.permutations if arrangement == 'permutation'
+                       else itertools.combinations)
+                groups = list(gen(all_mols, mlsd_n))
+                self.log.emit(
+                    f"\n{'─'*50}\n"
+                    f"  MLSD: {len(groups)} group(s) of {mlsd_n} ligands "
+                    f"({arrangement}) via {', '.join(vina_sfs)}")
+                for g_idx, group in enumerate(groups, start=1):
+                    combo  = '+'.join(m['name'] for m in group)
+                    pdbqts = [m['pdbqt_path'] for m in group]
+                    grp_tmp = os.path.join(tmp, f'mlsd_{g_idx}_dock')
+                    self.log.emit(f"\n  MLSD group [{g_idx}/{len(groups)}]: {combo}")
+                    try:
+                        for mode in listmode:
+                            use_flex = (mode == 'flexible' and flex_pdbqt and rigid_pdbqt)
+                            _flex    = flex_pdbqt  if use_flex else None
+                            receptor = rigid_pdbqt if use_flex else rec_pdbqt
+                            mode_dir = os.path.join(grp_tmp, mode)
+                            os.makedirs(mode_dir, exist_ok=True)
+                            for sf in vina_sfs:
+                                out = self._dock_vina_run(
+                                    receptor, pdbqts, sf, mode_dir, use_flex, _flex, combo)
+                                if out:
+                                    final_out = self._persist_docking_output(out, combo, mode, sf) or out
+                                    results.append({
+                                        "lig_name": combo,
+                                        "sf": f"{mode}/{sf}",
+                                        "out_path": final_out,
+                                        "smiles": "",
+                                        "source_path": "",
+                                    })
+                    except Exception as grp_exc:
+                        n_failed += 1
+                        self.log.emit(
+                            f"\n❌ MLSD group {combo} FAILED — skipping: {grp_exc}")
+                if ad4_needed or adgpu_needed:
+                    self.log.emit(
+                        "  Note: AD4/AD4-GPU do not support MLSD; running them per-ligand.")
+
+            # ── Phase 2b: per-ligand docking ──
+            # Vina/Vinardo run per-ligand only when MLSD is off; AD4/AD4-GPU
+            # always run per-ligand (no MLSD support).
+            per_ligand_vina = [] if mlsd_active else vina_sfs
+            if per_ligand_vina or ad4_needed or adgpu_needed:
+                for idx, mol_info in enumerate(all_mols, start=1):
+                    lig_name    = mol_info["name"]
+                    lig_pdbqt   = mol_info["pdbqt_path"]
+                    mol_smiles  = mol_info.get("smiles", "")
+                    source_path = mol_info.get("source_path", "")
+                    self.log.emit(
+                        f"\n{'─'*50}\n"
+                        f"  Docking molecule [{idx}/{total_mols}]: {lig_name}")
+                    lig_tmp = os.path.join(tmp, f'mol_{idx}_dock')
+                    os.makedirs(lig_tmp, exist_ok=True)
+                    try:
+                        for mode in listmode:
+                            use_flex = (mode == 'flexible' and flex_pdbqt and rigid_pdbqt)
+                            _flex    = flex_pdbqt  if use_flex else None
+                            _rigid   = rigid_pdbqt if use_flex else None
+                            mode_dir = os.path.join(lig_tmp, mode)
+                            os.makedirs(mode_dir, exist_ok=True)
+
+                            for sf in per_ligand_vina:
+                                receptor = _rigid if use_flex else rec_pdbqt
+                                out = self._dock_vina_run(
+                                    receptor, [lig_pdbqt], sf, mode_dir, use_flex, _flex, lig_name)
+                                if out:
+                                    final_out = self._persist_docking_output(out, lig_name, mode, sf) or out
+                                    results.append({
+                                        "lig_name": lig_name,
+                                        "sf": f"{mode}/{sf}",
+                                        "out_path": final_out,
+                                        "smiles": mol_smiles,
+                                        "source_path": source_path,
+                                    })
+
+                            if ad4_needed or adgpu_needed:
+                                fld_path, gpf_path = self._build_ad4_grids(
+                                    mode_dir, rec_pdbqt, lig_pdbqt, _flex, idx)
+
+                                if ad4_needed:
+                                    pythonsh = p['pythonsh']
+                                    prep_dpf = p['prepare_dpf']
+                                    dpf_path = os.path.join(mode_dir, 'dock.dpf')
+                                    dlg_path = os.path.join(mode_dir, 'dock_ad4.dlg')
+                                    local_rec = os.path.join(mode_dir, os.path.basename(rec_pdbqt))
+                                    local_lig = os.path.join(mode_dir, os.path.basename(lig_pdbqt))
+                                    if os.path.abspath(rec_pdbqt) != os.path.abspath(local_rec):
+                                        shutil.copy2(rec_pdbqt, local_rec)
+                                    if os.path.abspath(lig_pdbqt) != os.path.abspath(local_lig):
+                                        shutil.copy2(lig_pdbqt, local_lig)
+                                    local_flex = None
+                                    if _flex:
+                                        local_flex = os.path.join(mode_dir, os.path.basename(_flex))
+                                        if os.path.abspath(_flex) != os.path.abspath(local_flex):
+                                            shutil.copy2(_flex, local_flex)
+                                    self.progress.emit(f"Generating DPF for {lig_name}…")
                                     cmd = [
-                                        p['vina_path'],
-                                        '--receptor',   _rigid if use_flex else rec_pdbqt,
-                                        '--ligand',     lig_pdbqt,
-                                        '--scoring',    sf,
-                                        '--center_x',   str(p['cx']),
-                                        '--center_y',   str(p['cy']),
-                                        '--center_z',   str(p['cz']),
-                                        '--size_x',     str(p['sx']),
-                                        '--size_y',     str(p['sy']),
-                                        '--size_z',     str(p['sz']),
-                                        '--exhaustiveness', str(p.get('exhaustiveness', 8)),
-                                        '--num_modes',      str(p.get('n_poses', 9)),
-                                        '--energy_range',   str(p.get('energy_range', 3)),
-                                        '--cpu',            str(p.get('cpu', 4)),
-                                        '--out',            out_pdbqt,
+                                        pythonsh, prep_dpf,
+                                        '-r', local_rec, '-l', local_lig, '-o', dpf_path,
+                                        '-p', f'ga_num_evals='
+                                              f'{p.get("ad4_exhaustiveness", 8) * 250000}',
+                                        '-p', f'ga_run={p.get("n_poses", 9)}',
+                                        '-p', f'ga_pop_size={p.get("ga_pop_size", 150)}',
+                                        '-p', f'rmstol={p.get("cluster_rmsd", 2.0)}',
                                     ]
-                                    seed = p.get('seed', 0)
-                                    if seed:
-                                        cmd += ['--seed', str(seed)]
-                                    if use_flex:
-                                        cmd += ['--flex', _flex]
-                                    self._run_cmd(cmd, f"Vina ({sf}) — {lig_name}")
-                                    if os.path.isfile(out_pdbqt):
-                                        final_out = self._persist_docking_output(out_pdbqt, lig_name, mode, sf) or out_pdbqt
+                                    if local_flex:
+                                        cmd += ['-x', local_flex]
+                                    self._run_cmd(cmd, f"prepare_dpf42.py — {lig_name}")
+                                    if not os.path.isfile(dpf_path):
+                                        raise RuntimeError(
+                                            f"prepare_dpf42.py did not produce: {dpf_path}")
+                                    self.progress.emit(f"Running AutoDock4 for {lig_name}…")
+                                    self._run_cmd(
+                                        [p['ad4_path'], '-p', dpf_path, '-l', dlg_path],
+                                        f"autodock4 — {lig_name}", cwd=mode_dir)
+                                    if os.path.isfile(dlg_path):
+                                        final_out = self._persist_docking_output(dlg_path, lig_name, mode, 'ad4') or dlg_path
                                         results.append({
                                             "lig_name": lig_name,
-                                            "sf": f"{mode}/{sf}",
+                                            "sf": f"{mode}/ad4",
                                             "out_path": final_out,
                                             "smiles": mol_smiles,
                                             "source_path": source_path,
                                         })
                                     else:
-                                        self.log.emit(f"⚠ No output for {lig_name} [{mode}/{sf}]")
+                                        self.log.emit(f"⚠ AutoDock4 no output for {lig_name}")
 
-                                ad4_needed   = 'ad4'    in sf_types
-                                adgpu_needed = 'ad4gpu' in sf_types
-                                if ad4_needed or adgpu_needed:
-                                    fld_path, gpf_path = self._build_ad4_grids(
-                                        mode_dir, rec_pdbqt, lig_pdbqt, _flex, idx)
-
-                                    if ad4_needed:
-                                        pythonsh = p['pythonsh']
-                                        prep_dpf = p['prepare_dpf']
-                                        dpf_path = os.path.join(mode_dir, 'dock.dpf')
-                                        dlg_path = os.path.join(mode_dir, 'dock_ad4.dlg')
-                                        local_rec = os.path.join(mode_dir, os.path.basename(rec_pdbqt))
-                                        local_lig = os.path.join(mode_dir, os.path.basename(lig_pdbqt))
-                                        if os.path.abspath(rec_pdbqt) != os.path.abspath(local_rec):
-                                            shutil.copy2(rec_pdbqt, local_rec)
-                                        if os.path.abspath(lig_pdbqt) != os.path.abspath(local_lig):
-                                            shutil.copy2(lig_pdbqt, local_lig)
-                                        local_flex = None
-                                        if _flex:
-                                            local_flex = os.path.join(mode_dir, os.path.basename(_flex))
-                                            if os.path.abspath(_flex) != os.path.abspath(local_flex):
-                                                shutil.copy2(_flex, local_flex)
-                                        self.progress.emit(f"Generating DPF for {lig_name}…")
-                                        cmd = [
-                                            pythonsh, prep_dpf,
-                                            '-r', local_rec, '-l', local_lig, '-o', dpf_path,
-                                            '-p', f'ga_num_evals='
-                                                  f'{p.get("ad4_exhaustiveness", 8) * 250000}',
-                                            '-p', f'ga_run={p.get("n_poses", 9)}',
-                                            '-p', f'ga_pop_size={p.get("ga_pop_size", 150)}',
-                                            '-p', f'rmstol={p.get("cluster_rmsd", 2.0)}',
-                                        ]
-                                        if local_flex:
-                                            cmd += ['-x', local_flex]
-                                        self._run_cmd(cmd, f"prepare_dpf42.py — {lig_name}")
-                                        if not os.path.isfile(dpf_path):
-                                            raise RuntimeError(
-                                                f"prepare_dpf42.py did not produce: {dpf_path}")
-                                        self.progress.emit(f"Running AutoDock4 for {lig_name}…")
-                                        self._run_cmd(
-                                            [p['ad4_path'], '-p', dpf_path, '-l', dlg_path],
-                                            f"autodock4 — {lig_name}", cwd=mode_dir)
-                                        if os.path.isfile(dlg_path):
-                                            final_out = self._persist_docking_output(dlg_path, lig_name, mode, 'ad4') or dlg_path
-                                            results.append({
-                                                "lig_name": lig_name,
-                                                "sf": f"{mode}/ad4",
-                                                "out_path": final_out,
-                                                "smiles": mol_smiles,
-                                                "source_path": source_path,
-                                            })
-                                        else:
-                                            self.log.emit(f"⚠ AutoDock4 no output for {lig_name}")
-
-                                    if adgpu_needed:
-                                        dlg_base = os.path.join(mode_dir, 'dock_adgpu')
-                                        self.progress.emit(f"Running AutoDock-GPU for {lig_name}…")
-                                        cmd = [
-                                            p['autodockgpu'],
-                                            '--lfile', lig_pdbqt,
-                                            '--ffile', fld_path,
-                                            '--resnam', dlg_base,
-                                            '--nrun', str(p.get('n_poses', 9)),
-                                            '--nev',  str(p.get('ad4_exhaustiveness', 8) * 250000),
-                                        ]
-                                        seed = p.get('seed', 0)
-                                        if seed:
-                                            cmd += ['--seed', str(seed)]
-                                        if _flex:
-                                            cmd += ['--flexres', _flex]
-                                        self._run_cmd(cmd, f"AutoDock-GPU — {lig_name}",
-                                                      cwd=mode_dir)
-                                        dlg_path = dlg_base + '.dlg'
-                                        if os.path.isfile(dlg_path):
-                                            final_out = self._persist_docking_output(dlg_path, lig_name, mode, 'ad4gpu') or dlg_path
-                                            results.append({
-                                                "lig_name": lig_name,
-                                                "sf": f"{mode}/ad4gpu",
-                                                "out_path": final_out,
-                                                "smiles": mol_smiles,
-                                                "source_path": source_path,
-                                            })
-                                        else:
-                                            self.log.emit(
-                                                f"⚠ AD4GPU no output for {lig_name}")
-
-                        except Exception as mol_exc:
-                            n_failed += 1
-                            self.log.emit(
-                                f"\n❌ [{total_mols}] {lig_name} FAILED — "
-                                f"skipping: {mol_exc}")
-                except RuntimeError as e:
-                    self.log.emit(f"⚠ Skipping {input_name}: {e}")
-                    continue
-
-                if not had_molecule:
-                    self.log.emit(f"⚠ Skipping {input_name}: no molecules were converted")
-                    continue
-                pct = int(file_idx * 100 / len(lig_files))
-                self.progress_pct.emit(pct)
+                                if adgpu_needed:
+                                    dlg_base = os.path.join(mode_dir, 'dock_adgpu')
+                                    self.progress.emit(f"Running AutoDock-GPU for {lig_name}…")
+                                    cmd = [
+                                        p['autodockgpu'],
+                                        '--lfile', lig_pdbqt,
+                                        '--ffile', fld_path,
+                                        '--resnam', dlg_base,
+                                        '--nrun', str(p.get('n_poses', 9)),
+                                        '--nev',  str(p.get('ad4_exhaustiveness', 8) * 250000),
+                                    ]
+                                    seed = p.get('seed', 0)
+                                    if seed:
+                                        cmd += ['--seed', str(seed)]
+                                    if _flex:
+                                        cmd += ['--flexres', _flex]
+                                    self._run_cmd(cmd, f"AutoDock-GPU — {lig_name}",
+                                                  cwd=mode_dir)
+                                    dlg_path = dlg_base + '.dlg'
+                                    if os.path.isfile(dlg_path):
+                                        final_out = self._persist_docking_output(dlg_path, lig_name, mode, 'ad4gpu') or dlg_path
+                                        results.append({
+                                            "lig_name": lig_name,
+                                            "sf": f"{mode}/ad4gpu",
+                                            "out_path": final_out,
+                                            "smiles": mol_smiles,
+                                            "source_path": source_path,
+                                        })
+                                    else:
+                                        self.log.emit(
+                                            f"⚠ AD4GPU no output for {lig_name}")
+                    except Exception as mol_exc:
+                        n_failed += 1
+                        self.log.emit(
+                            f"\n❌ [{idx}] {lig_name} FAILED — "
+                            f"skipping: {mol_exc}")
 
             if not results:
                 raise RuntimeError(

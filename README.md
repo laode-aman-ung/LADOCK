@@ -163,7 +163,7 @@ If you use LADOCK in your research, please cite:
 
 LADOCK Desktop is **proprietary software** — Copyright (c) 2024 La Ode Aman. All rights reserved. See [LICENSE](LICENSE) for the full terms.
 
-- **Free non-commercial use (2024–2030):** free of charge for **everyone** — students, academics, independent researchers, and the general public — for non-commercial research, study, teaching, and evaluation. **No registration, institutional email, or license key is required**; the app activates the free academic license automatically until December 31, 2030. Subject to the citation requirement above.
+- **Free non-commercial use (2024–2029):** free of charge for **everyone** — students, academics, independent researchers, and the general public — for non-commercial research, study, teaching, and evaluation. **No registration, institutional email, or license key is required**; the app activates the free academic license automatically until December 31, 2029. Subject to the citation requirement above.
 - **Commercial use:** requires a paid **commercial license** (for-profit companies, CROs, pharmaceutical/biotech firms, or any commercial R&D). Contact the licensor at laode_aman@ung.ac.id.
 
 This is **not** an open-source license. Redistribution, sublicensing, and resale are not permitted.

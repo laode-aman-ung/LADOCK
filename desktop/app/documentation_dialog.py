@@ -106,7 +106,12 @@ _WORKFLOW = _CSS + """
       Multi-molecule libraries are expanded and prepared automatically.</li>
   <li><b>Simultaneous Ligands (MLSD)</b> docks several ligands together in one
       pocket. It is a Vina-only feature, so the control is enabled only when
-      <b>Vina</b>/<b>Vinardo</b> is selected — see the <i>Engines</i> tab.</li>
+      <b>Vina</b>/<b>Vinardo</b> is selected — see the <i>Engines</i> tab.
+      Set <i>Simultaneous Ligands</i> to <code>N &gt; 1</code> and the prepared
+      library is split into groups of <code>N</code> (<i>combination</i> or
+      <i>permutation</i>); each group is docked together in a single Vina run,
+      and its result row is labelled with the joined names (e.g. <code>ligA+ligB</code>).
+      AutoDock4 / AutoDock-GPU keep running one ligand at a time.</li>
 </ul>
 
 <h3>4 · Jobs &amp; Results</h3>

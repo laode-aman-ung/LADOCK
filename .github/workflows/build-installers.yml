@@ -14,6 +14,14 @@ defaults:
   run:
     working-directory: desktop
 
+# Binaries come from YOUR hosted archives (bin-<platform>.tar.gz), not upstream.
+# Set these repo secrets (both optional — script defaults to https://ladock.ladeep.id/bin):
+#   LADOCK_BIN_BASE_URL  base URL of your bin archives
+#   LADOCK_BIN_TOKEN     bearer token if the storage is private
+env:
+  LADOCK_BIN_BASE_URL: ${{ secrets.LADOCK_BIN_BASE_URL }}
+  LADOCK_BIN_TOKEN: ${{ secrets.LADOCK_BIN_TOKEN }}
+
 jobs:
   # ── Windows: native + hybrid ────────────────────────────────────────────
   windows:
@@ -97,3 +105,30 @@ jobs:
         with:
           name: ladock-mac
           path: desktop/build/installers/*.dmg
+
+  # ── Publish to your own download host / cloud storage ───────────────────
+  # Uploads every built installer to the location the website links to
+  # (docs.html → downloads/…). Configure two repository secrets:
+  #   LADOCK_UPLOAD_REMOTE  e.g. "myremote:my-bucket/downloads"  (rclone remote)
+  #   RCLONE_CONFIG_B64     base64 of your rclone.conf (S3 / Cloudflare R2 /
+  #                         Backblaze B2 / SFTP / WebDAV / …)
+  # Skips automatically if the secrets are absent.
+  publish:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: desktop/installers
+          merge-multiple: true
+      - name: Upload installers (rclone)
+        env:
+          RCLONE_REMOTE: ${{ secrets.LADOCK_UPLOAD_REMOTE }}
+          RCLONE_CONF_B64: ${{ secrets.RCLONE_CONFIG_B64 }}
+        if: ${{ env.RCLONE_REMOTE != '' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y rclone
+          mkdir -p ~/.config/rclone
+          echo "$RCLONE_CONF_B64" | base64 -d > ~/.config/rclone/rclone.conf
+          rclone copy installers "$RCLONE_REMOTE" --progress
+          echo "Uploaded to $RCLONE_REMOTE"

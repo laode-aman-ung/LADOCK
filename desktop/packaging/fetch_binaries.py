@@ -1,153 +1,107 @@
 #!/usr/bin/env python3
 """
-Fetch bundled binaries for a LADOCK release build.
+Fetch the maintainer's own pre-packaged bundled binaries for a release build.
 
-Downloads docking engines and tools from official sources into
-desktop/bin/<platform>/.  Run this on CI before building an installer.
+Rather than rebuilding each engine from upstream (fragile — Scripps downtime,
+changing apt package names,...), this downloads the exact ``bin/<platform>/`` set
+you already validated, packaged as ONE archive per platform and hosted on your
+own storage / download host.
+
+Expected layout on the host (each archive has a top-level ``<platform>/`` dir):
+
+    <BASE>/bin-windows.tar.gz     ->  bin/windows/...
+    <BASE>/bin-linux.tar.gz       ->  bin/linux/...   (with or without ADFRsuite;
+    <BASE>/bin-mac.tar.gz         ->  bin/mac/...       build_release.py prunes
+                                                        ADFRsuite at stage time)
+
+Use **.tar.gz** for linux/mac so executable bits are preserved (zip does not
+preserve Unix permissions reliably).
+
+Configure via environment (defaults shown):
+    LADOCK_BIN_BASE_URL   base URL            (default: https://ladock.ladeep.id/bin)
+    LADOCK_BIN_TOKEN      optional bearer token for private/authenticated storage
 
 Usage:
     python packaging/fetch_binaries.py <platform>   # windows | linux | mac
-    python packaging/fetch_binaries.py all           # all three
+    python packaging/fetch_binaries.py all
 """
+from __future__ import annotations
 
 import os
 import shutil
-import stat
-import subprocess
 import sys
 import tarfile
+import urllib.request
 import zipfile
 from pathlib import Path
 
 _BIN = Path(__file__).resolve().parent.parent / "bin"
-
-# ── URLs ────────────────────────────────────────────────────────────────────
-VINA_BASE = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7"
-VINA_FILES = {
-    "windows": ["vina_1.2.7_win.exe", "vina_split_1.2.7_win.exe"],
-    "linux":   ["vina_1.2.7_linux_x86_64", "vina_split_1.2.7_linux_x86_64"],
-    "mac":     ["vina_1.2.7_mac_x86_64", "vina_split_1.2.7_mac_x86_64"],
-}
-
-ADGPU_BASE = "https://github.com/ccsb-scripps/AutoDock-GPU/releases/download/v1.6"
-ADGPU_FILES = {
-    "linux": ["adgpu-v1.6_linux_x64_cuda12_128wi", "adgpu_analysis-v1.6_linux_x64"],
-}
-
-MGLTOOLS_URL = (
-    "http://mgltools.scripps.edu/downloads/downloads/tars/releases/"
-    "REL1.5.6/mgltools_x86_64Linux2_1.5.6.tar.gz"
-)
+# `or default` so an empty env var (e.g. an unset CI secret) falls back cleanly.
+_BASE = (os.environ.get("LADOCK_BIN_BASE_URL") or "https://ladock.ladeep.id/bin").rstrip("/")
+_TOKEN = (os.environ.get("LADOCK_BIN_TOKEN") or "").strip()
 
 
 def _download(url: str, dest: Path) -> None:
-    import urllib.request
-    print(f"  ↓ {url}")
-    urllib.request.urlretrieve(url, dest)
-    print(f"    → {dest}  ({dest.stat().st_size / 1024 / 1024:.1f} MB)")
+    print(f"  downloading {url}")
+    req = urllib.request.Request(url)
+    if _TOKEN:
+        req.add_header("Authorization", f"Bearer {_TOKEN}")
+    with urllib.request.urlopen(req, timeout=120) as resp, open(dest, "wb") as fh:
+        shutil.copyfileobj(resp, fh)
+    print(f"    -> {dest.stat().st_size / 1024 / 1024:.1f} MB")
 
 
-def _chmodx(path: Path) -> None:
-    mode = os.stat(path).st_mode
-    os.chmod(path, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+def _extract(archive: Path, into: Path) -> None:
+    if archive.name.endswith(".zip"):
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(into)
+    else:
+        with tarfile.open(archive) as t:
+            t.extractall(into)
 
 
-def ensure_dir(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-# ── Vina ─────────────────────────────────────────────────────────────────────
-def fetch_vina(platform: str) -> None:
-    dest = ensure_dir(_BIN / platform)
-    for fname in VINA_FILES[platform]:
-        url = f"{VINA_BASE}/{fname}"
-        out = dest / fname
-        if out.exists():
-            print(f"  ✓ {fname} already exists")
-            continue
-        _download(url, out)
-        if platform != "windows":
-            _chmodx(out)
-
-
-# ── AutoDock-GPU (Linux only) ────────────────────────────────────────────────
-def fetch_adgpu() -> None:
-    dest = ensure_dir(_BIN / "linux")
-    for fname in ADGPU_FILES["linux"]:
-        url = f"{ADGPU_BASE}/{fname}"
-        out = dest / fname
-        if out.exists():
-            print(f"  ✓ {fname} already exists")
-            continue
-        _download(url, out)
-        _chmodx(out)
-
-
-# ── AutoDock4 + AutoGrid4 (Linux only, via apt on Ubuntu) ────────────────────
-def fetch_autodock4() -> None:
-    dest = ensure_dir(_BIN / "linux")
-    # Ensure universe repo is available
-    subprocess.run(["sudo", "add-apt-repository", "-y", "universe"],
-                   capture_output=True)
-    subprocess.run(["sudo", "apt-get", "update"], capture_output=True)
-    for exe in ("autodock4", "autogrid4"):
-        out = dest / exe
-        if out.exists():
-            print(f"  ✓ {exe} already exists")
-            continue
-        try:
-            subprocess.run(["sudo", "apt-get", "install", "-y", exe],
-                           check=True, capture_output=True)
-            path = shutil.which(exe)
-            if path:
-                shutil.copy2(path, out)
-                print(f"  ✓ {exe} copied from {path}")
-        except Exception as e:
-            print(f"  ! apt-get {exe} failed: {e}")
-            print(f"  ! place {exe} manually in {dest}")
-
-
-# ── MGLTools 1.5.6 (Linux only) ──────────────────────────────────────────────
-def fetch_mgltools() -> None:
-    dest = ensure_dir(_BIN / "linux")
-    mgldir = dest / "MGLTools-1.5.6"
-    if mgldir.exists():
-        print(f"  ✓ MGLTools-1.5.6 already exists")
-        return
-    tarball = dest / "mgltools_x86_64Linux2_1.5.6.tar.gz"
-    if not tarball.exists():
-        _download(MGLTOOLS_URL, tarball)
-    print("  Extracting MGLTools (this may take a while)…")
-    tarfile.open(tarball).extractall(path=dest)
-    # The tarball creates mgltools_x86_64Linux2_1.5.6/ — rename
-    extracted = dest / "mgltools_x86_64Linux2_1.5.6"
-    if extracted.exists():
-        extracted.rename(mgldir)
-    tarball.unlink()
-    # The install.sh script sets up internal links — run it
-    installer = mgldir / "install.sh"
-    if installer.exists():
-        subprocess.run(["bash", str(installer)], cwd=str(mgldir),
-                       check=True, capture_output=True)
-    print(f"  ✓ MGLTools-1.5.6  ({sum(f.stat().st_size for f in mgldir.rglob('*') if f.is_file()) / 1024 / 1024:.0f} MB)")
-
-
-# ── Platform dispatch ────────────────────────────────────────────────────────
 def fetch_platform(platform: str) -> None:
-    print(f"\n── {platform} ──")
-    fetch_vina(platform)
-    if platform == "linux":
-        fetch_adgpu()
-        fetch_autodock4()
-        fetch_mgltools()
+    print(f"\n== {platform} ==")
+    dest = _BIN / platform
+    if dest.is_dir() and any(dest.iterdir()):
+        print(f"  [ok] bin/{platform} already present - skipping")
+        return
+    _BIN.mkdir(parents=True, exist_ok=True)
+
+    last_err: Exception | None = None
+    for ext in (".tar.gz", ".tar.xz", ".zip"):
+        url = f"{_BASE}/bin-{platform}{ext}"
+        archive = _BIN / f"bin-{platform}{ext}"
+        try:
+            _download(url, archive)
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            print(f"  - not found ({exc})")
+            continue
+        print(f"  extracting {archive.name}...")
+        _extract(archive, _BIN)
+        archive.unlink(missing_ok=True)
+        if not (dest.is_dir() and any(dest.iterdir())):
+            raise SystemExit(
+                f"Archive extracted but bin/{platform}/ is empty - the archive "
+                f"must contain a top-level '{platform}/' folder.")
+        print(f"  [ok] bin/{platform} ready")
+        return
+
+    raise SystemExit(
+        f"Could not fetch bin/{platform} from {_BASE} "
+        f"(tried .tar.gz/.tar.xz/.zip). Last error: {last_err}\n"
+        f"Host your validated binaries as <BASE>/bin-{platform}.tar.gz, or set "
+        f"LADOCK_BIN_BASE_URL / LADOCK_BIN_TOKEN.")
 
 
-def main():
-    platforms = sys.argv[1:]
-    if not platforms or "all" in platforms:
+def main() -> None:
+    platforms = sys.argv[1:] or ["all"]
+    if "all" in platforms:
         platforms = ["windows", "linux", "mac"]
     for p in platforms:
+        if p not in ("windows", "linux", "mac"):
+            raise SystemExit(f"Unknown platform '{p}' (windows|linux|mac|all)")
         fetch_platform(p)
     print("\nDone.")
 
