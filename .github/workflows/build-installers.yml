@@ -10,10 +10,6 @@ on:
   push:
     tags: ["v*"]
 
-defaults:
-  run:
-    working-directory: desktop
-
 # Binaries come from YOUR hosted archives (bin-<platform>.tar.gz), not upstream.
 # Set these repo secrets (both optional — script defaults to https://ladock.ladeep.id/bin):
 #   LADOCK_BIN_BASE_URL  base URL of your bin archives
@@ -34,10 +30,10 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - name: Fetch bundled binaries (native)
-        run: python packaging/fetch_binaries.py windows
+        run: python -m ladock.binaries windows
       - name: Fetch bundled binaries (Linux for hybrid)
         if: matrix.variant == 'windows-hybrid'
-        run: python packaging/fetch_binaries.py linux
+        run: python -m ladock.binaries linux
       - name: Install deps
         run: python -m pip install -r requirements.txt pyinstaller
       - name: Stage + freeze
@@ -51,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ladock-${{ matrix.variant }}
-          path: desktop/build/installers/*.exe
+          path: build/installers/*.exe
 
   # ── Linux: deb + AppImage ───────────────────────────────────────────────
   linux:
@@ -61,7 +57,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - name: Fetch bundled binaries
-        run: python packaging/fetch_binaries.py linux
+        run: python -m ladock.binaries linux
       - name: Install deps
         run: |
           sudo apt-get update
@@ -80,8 +76,8 @@ jobs:
         with:
           name: ladock-linux
           path: |
-            desktop/build/installers/*.deb
-            desktop/build/installers/*.AppImage
+            build/installers/*.deb
+            build/installers/*.AppImage
 
   # ── macOS: dmg ──────────────────────────────────────────────────────────
   macos:
@@ -91,7 +87,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - name: Fetch bundled binaries
-        run: python packaging/fetch_binaries.py mac
+        run: python -m ladock.binaries mac
       - name: Install deps
         run: |
           python -m pip install -r requirements.txt pyinstaller
@@ -104,7 +100,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ladock-mac
-          path: desktop/build/installers/*.dmg
+          path: build/installers/*.dmg
 
   # ── Publish to your own download host / cloud storage ───────────────────
   # Uploads every built installer to the location the website links to
@@ -119,7 +115,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: desktop/installers
+          path: installers
           merge-multiple: true
       - name: Upload installers (rclone)
         env:

@@ -1,0 +1,70 @@
+name: Publish to PyPI
+
+# Trusted Publishing: PyPI verifies this workflow through GitHub's OIDC token,
+# so there is no API token to create, paste, rotate or leak. Nothing secret is
+# stored in this repository.
+#
+# One-time setup on PyPI (see docs/publishing.md):
+#   pypi.org -> Your projects -> ladock -> Manage -> Publishing -> Add publisher
+#
+# Publishing then happens by creating a GitHub Release — the version that goes
+# out is whatever `version` says in pyproject.toml.
+
+on:
+  release:
+    types: [published]
+  # Lets you rehearse the whole build without publishing anything.
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+
+      - name: Validate metadata and README rendering
+        run: python -m twine check dist/*
+
+      - name: Verify the wheel installs and both commands appear
+        run: |
+          python -m venv /tmp/check
+          /tmp/check/bin/pip install --quiet dist/*.whl
+          test -x /tmp/check/bin/ladock-cli
+          test -x /tmp/check/bin/ladock-desktop
+          test -x /tmp/check/bin/ladock-fetch-binaries
+          # Import from a neutral directory so the source tree cannot shadow the
+          # installed package and make a broken wheel look fine.
+          cd /tmp && /tmp/check/bin/python -c "import ladock; print(ladock.__version__)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Only a real release publishes; workflow_dispatch stops after build.
+    if: github.event_name == 'release'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ladock
+    permissions:
+      # Required for Trusted Publishing — this is what replaces the API token.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

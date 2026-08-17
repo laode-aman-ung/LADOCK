@@ -1,0 +1,14 @@
+# Normalise line endings so editing on Windows does not rewrite whole files.
+# (Eight HAKI documents were previously committed twice over purely because
+# they flipped to CRLF in the working tree.)
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+*.iss  text eol=crlf
+
+*.png  binary
+*.pdf  binary
+*.docx binary
+*.trg  binary
+*.pdbqt text eol=lf

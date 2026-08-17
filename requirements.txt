@@ -1,0 +1,13 @@
+# LADOCK dependencies.
+#
+# pyproject.toml is the single source of truth; this file just installs the
+# project itself so `pip install -r requirements.txt` and `pip install ladock`
+# can never drift apart (they did: this file still listed scipy, which nothing
+# imports, and a PySide6-WebEngine package that does not exist on PyPI).
+#
+#   pip install -r requirements.txt        # runtime deps + the ladock commands
+#   pip install -e .                       # same, editable
+#
+# The docking engines themselves are NOT Python packages — fetch them after
+# installing with:  ladock-fetch-binaries
+.

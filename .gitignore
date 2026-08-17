@@ -1,4 +1,4 @@
-# Binary tools (too large for git — install separately)
+# Engine binaries (too large for git — fetch with `ladock-fetch-binaries`)
 bin/
 
 # Website (excluded per user request)
@@ -46,5 +46,5 @@ Thumbs.db
 .DS_Store
 
 # Release build artifacts
-desktop/build/
+build/
 *.spec.bak

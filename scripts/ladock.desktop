@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=2.0
+Type=Application
+Name=LADOCK Desktop
+Comment=Molecular docking workstation
+# Provided on PATH by `pip install ladock` (project.gui-scripts).
+# Running from a source checkout instead? Use: Exec=bash /path/to/LADOCK/scripts/ladock.sh
+Exec=ladock-desktop
+Icon=ladock
+Terminal=false
+Categories=Science;Chemistry;Education;
+Keywords=docking;molecular;vina;autodock;cheminformatics;
+StartupWMClass=LADOCK Desktop
