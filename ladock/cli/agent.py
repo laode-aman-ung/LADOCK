@@ -1420,7 +1420,10 @@ def validate_rules(cfg: DockConfig, tools: ToolConfig) -> None:
         if missing:
             raise RuntimeError("MGLTools is required for AD4/AD4-GPU/flexible mode:\n" + "\n".join(missing))
     if VINA_SCORING & set(cfg.scoring) and not (os.path.isfile(tools.vina_path) or shutil.which(tools.vina_path)):
-        raise RuntimeError(f"Vina executable was not found: {tools.vina_path}")
+        raise RuntimeError(
+            f"Vina executable was not found: {tools.vina_path}\n"
+            f"Docking engines are not part of the pip install. Fetch them once:\n"
+            f"    ladock-fetch-binaries")
     if not meeko_available() and not os.path.isfile(tools.prepare_receptor):
         raise RuntimeError("Meeko is not available and MGLTools receptor preparation was not found.")
 

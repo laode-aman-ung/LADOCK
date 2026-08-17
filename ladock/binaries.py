@@ -43,8 +43,11 @@ from ladock.paths import bin_root, platform_name
 
 PLATFORMS = ("windows", "linux", "mac")
 
-# `or default` so an empty env var (e.g. an unset CI secret) falls back cleanly.
-_BASE = (os.environ.get("LADOCK_BIN_BASE_URL") or "https://ladock.ladeep.id/bin").rstrip("/")
+# Default to the GitHub release assets: they need no separate web host, no
+# certificate to keep alive, and they are already public. `or default` so an
+# empty env var (e.g. an unset CI secret) falls back cleanly.
+_DEFAULT_BASE = "https://github.com/laode-aman-ung/LADOCK/releases/download/v2.0.0"
+_BASE = (os.environ.get("LADOCK_BIN_BASE_URL") or _DEFAULT_BASE).rstrip("/")
 _TOKEN = (os.environ.get("LADOCK_BIN_TOKEN") or "").strip()
 
 
