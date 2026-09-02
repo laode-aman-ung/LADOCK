@@ -6,7 +6,11 @@ set -euo pipefail
 
 DIST="${1:?dist dir required}"
 VERSION="${2:-linux}"
-APPVER="${3:-2.0.0}"
+# Version comes from the package, so the installer filenames cannot drift away
+# from what pip reports. Pass it explicitly as an argument to override.
+_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+_pkgver="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$_root/ladock/__init__.py" 2>/dev/null | head -1)"
+APPVER="${3:-${_pkgver:-0.0.0}}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="$(cd "$DIST/../.." && pwd)/installers"
 mkdir -p "$OUT"

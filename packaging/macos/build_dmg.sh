@@ -6,7 +6,11 @@
 set -euo pipefail
 
 APP="${1:?path to LADOCK.app required}"
-APPVER="${2:-2.0.0}"
+# Version comes from the package, so the installer filenames cannot drift away
+# from what pip reports. Pass it explicitly as an argument to override.
+_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+_pkgver="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$_root/ladock/__init__.py" 2>/dev/null | head -1)"
+APPVER="${2:-${_pkgver:-0.0.0}}"
 OUT="$(cd "$APP/../.." && pwd)/installers"
 mkdir -p "$OUT"
 DMG="$OUT/LADOCK-${APPVER}-mac.dmg"
