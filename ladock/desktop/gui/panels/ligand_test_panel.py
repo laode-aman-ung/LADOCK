@@ -42,7 +42,8 @@ from ladock.desktop.gui.panels.native_redocking_panel import (
     NativeRedockingPanel, parse_pdb_components,
     _GRP, _SPIN, _COMBO, _TYPE_COLOR,
     compute_ligand_center, extract_pdb_component, sanitize_pdb_text_for_mgltools,
-    _centered_widget, _inner_widget, find_flex_residues
+    _centered_widget, _inner_widget, find_flex_residues,
+    flexres_spec, drop_non_rotatable,
 )
 from ladock.desktop.core.tool_paths import (
     resolve_adfrsuite_dir,
@@ -240,7 +241,16 @@ class _LigandDockingWorker(QObject):
 
         flex_residues = p.get('flex_residues_list', [])
         if flex_residues and 'flexible' in p.get('listmode', []):
-            flex_spec   = '_'.join(flex_residues)
+            flex_residues, dropped = drop_non_rotatable(flex_residues)
+            if dropped:
+                self.log.emit(
+                    f"  Skipped {len(dropped)} residue(s) with no rotatable "
+                    f"side chain: {', '.join(dropped)}")
+            if not flex_residues:
+                raise RuntimeError(
+                    "Every requested flexible residue lacks a rotatable side "
+                    "chain. Widen Flex Distance or pick other residues.")
+            flex_spec   = flexres_spec(rec_pdbqt, flex_residues)
             rigid_pdbqt = os.path.join(tmp, 'rigid.pdbqt')
             flex_pdbqt  = os.path.join(tmp, 'flex.pdbqt')
             self.progress.emit(
@@ -250,9 +260,13 @@ class _LigandDockingWorker(QObject):
                 '-r', rec_pdbqt, '-s', flex_spec,
                 '-g', rigid_pdbqt, '-x', flex_pdbqt,
             ], "prepare_flexreceptor4.py")
-            if not os.path.isfile(rigid_pdbqt) or not os.path.isfile(flex_pdbqt):
+            # An empty flex file means no residue matched -s. Vina ignores an
+            # empty --flex and silently docks rigid, so the size has to be
+            # checked too, not just that the file exists.
+            if (not os.path.isfile(rigid_pdbqt) or not os.path.isfile(flex_pdbqt)
+                    or os.path.getsize(flex_pdbqt) == 0):
                 raise RuntimeError(
-                    "prepare_flexreceptor4.py did not produce rigid/flex PDBQT.\n"
+                    "prepare_flexreceptor4.py produced no flexible residues.\n"
                     f"Residue spec: {flex_spec}")
             receptor_dir = str(p.get('persistent_receptor_dir', '') or '').strip()
             if receptor_dir:

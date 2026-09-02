@@ -138,14 +138,25 @@ Yang masih terbuka:
 3. **35 blok `except` berakhir `pass`/`continue`,** menelan galat tanpa jejak.
 4. **Tidak ada `logging` sama sekali** di 49 berkas; diagnostik mengandalkan
    `print` dan sinyal Qt.
-5. **Tes hanya menutupi CLI.** 68 fungsi tes di `tests/test_cli_agent.py`,
-   seluruhnya mengimpor `ladock.cli.agent`. Mode desktop tidak diuji sama
-   sekali. Kandidat pertama yang mudah: fungsi murni di
-   `engine/interaction_analyzer.py` dan `data/result_parser.py`.
+5. **Tes masih berat sebelah ke CLI.** 92 tes di `tests/test_cli_agent.py`
+   mengimpor `ladock.cli.agent`; `tests/test_desktop_flexres.py` menambah 9
+   tes pertama untuk `ladock/desktop/`, terbatas pada fungsi murni penanganan
+   residu fleksibel dan dilewati bila PySide6 tidak ada. Kandidat berikutnya
+   yang mudah: fungsi murni di `engine/interaction_analyzer.py` dan
+   `data/result_parser.py`.
 
 Sudah diperbaiki 2026-09-02: `set_job_dir` yang terdefinisi dua kali di
 `ligand_test_panel.py`, dan `show_welcome` yang dibaca tanpa `type=bool`
 sehingga string `"false"` selalu bernilai benar.
+
+Sudah diperbaiki 2026-09-02 (docking fleksibel, CLI dan desktop): spec
+`prepare_flexreceptor4.py` dibangun salah di ketiga tempat. CLI kehilangan
+seluruh residu di luar rantai pertama; desktop mengirim format yang ditolak
+MGLTools sepenuhnya sehingga mode fleksibel di GUI **tidak pernah bekerja** —
+flex file kosong, penjaganya hanya memeriksa berkas ada, dan Vina mengabaikan
+`--flex` kosong tanpa pesan. Sekarang satu pembangun spec dipakai bersama
+(`_flexres_spec` di CLI, `flexres_spec` di desktop, diuji setara), ALA/GLY
+disaring karena mematikan `agfr`, dan kedua penjaga memeriksa ukuran berkas.
 
 ## Aturan sesi
 

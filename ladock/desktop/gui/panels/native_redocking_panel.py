@@ -411,8 +411,12 @@ def find_flex_residues(pdb_path: str,
     Find protein residues (ATOM records, standard AA) whose any heavy atom
     is within `cutoff` Å of the box center (cx, cy, cz).
 
-    Returns list of residue identifiers in prepare_flexreceptor4.py format:
-        ["chain:resname:resseq", ...]   →  joined as "A:LYS:123_A:ASP:89"
+    Returns a list of residue identifiers, one per residue:
+        ["chain:resname:resseq", ...]
+
+    This is the panel's own format, not the one prepare_flexreceptor4.py takes.
+    Feed it through flexres_spec() before handing it to that script; joining
+    these strings together directly produces something MGLTools rejects.
     """
     seen: dict[tuple, bool] = {}   # (chain, resname, resseq) → within cutoff?
     cutoff2 = cutoff * cutoff
@@ -439,6 +443,52 @@ def find_flex_residues(pdb_path: str,
                 seen[key] = True
 
     return [f"{ch}:{rn}:{rs}" for (ch, rn, rs) in seen]
+
+
+# Residues with no rotatable side chain. prepare_flexreceptor4.py drops them
+# silently and agfr refuses the whole job over them, so they are filtered out
+# before the list reaches either.
+NON_ROTATABLE_SIDE_CHAINS = frozenset({"ALA", "GLY"})
+
+
+def drop_non_rotatable(flex_residues: list[str]) -> tuple[list[str], list[str]]:
+    """Split a flexible-residue list into usable and non-rotatable halves."""
+    keep, dropped = [], []
+    for res in flex_residues:
+        parts = res.split(':')
+        resname = parts[1].upper() if len(parts) == 3 else ''
+        (dropped if resname in NON_ROTATABLE_SIDE_CHAINS else keep).append(res)
+    return keep, dropped
+
+
+def flexres_spec(rec_pdbqt: str, flex_residues: list[str]) -> str:
+    """Build the -s argument prepare_flexreceptor4.py actually expects.
+
+    The format is ``<molname>:<chain>:<RESnameRESnum>_...``, repeated per chain
+    and joined by commas, where molname is the receptor PDBQT stem:
+
+        receptor:A:MET49,receptor:B:ASN29_THR72
+
+    Two things have to be right and are easy to get wrong. Residue name and
+    number are concatenated without a separator -- ``MET49``, not ``MET:49``.
+    And the molecule name has to appear on every chain group, because the
+    script splits -s on commas and parses each piece as a complete triple.
+
+    Passing the panel's own ``chain:resname:resseq`` strings joined by "_"
+    instead makes MGLTools report "no residue found using string ..." and write
+    an empty flex file, which Vina then silently ignores -- so flexible docking
+    quietly runs rigid.
+    """
+    stem = os.path.splitext(os.path.basename(rec_pdbqt))[0]
+    by_chain: dict[str, list[str]] = {}
+    for res in flex_residues:
+        parts = res.split(':')
+        if len(parts) != 3:
+            continue
+        chain, resname, resseq = parts
+        by_chain.setdefault(chain, []).append(f"{resname}{resseq}")
+    return ','.join(f"{stem}:{chain}:{'_'.join(res)}"
+                    for chain, res in by_chain.items())
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -603,7 +653,16 @@ class _DockingWorker(QObject):
         # ── Flexible receptor split ────────────────────────────────────
         flex_residues = p.get('flex_residues_list', [])   # list of "chain:res:seq"
         if flex_residues and 'flexible' in p.get('listmode', []):
-            flex_spec  = '_'.join(flex_residues)
+            flex_residues, dropped = drop_non_rotatable(flex_residues)
+            if dropped:
+                self.log.emit(
+                    f"  Skipped {len(dropped)} residue(s) with no rotatable "
+                    f"side chain: {', '.join(dropped)}")
+            if not flex_residues:
+                raise RuntimeError(
+                    "Every requested flexible residue lacks a rotatable side "
+                    "chain. Widen Flex Distance or pick other residues.")
+            flex_spec  = flexres_spec(rec_pdbqt, flex_residues)
             rigid_pdbqt = os.path.join(tmp, 'rigid.pdbqt')
             flex_pdbqt  = os.path.join(tmp, 'flex.pdbqt')
             self.progress.emit(
@@ -617,9 +676,13 @@ class _DockingWorker(QObject):
                 '-g', rigid_pdbqt,
                 '-x', flex_pdbqt,
             ], "prepare_flexreceptor4.py")
-            if not os.path.isfile(rigid_pdbqt) or not os.path.isfile(flex_pdbqt):
+            # An empty flex file means no residue matched -s. Vina ignores an
+            # empty --flex and silently docks rigid, so the size has to be
+            # checked too, not just that the file exists.
+            if (not os.path.isfile(rigid_pdbqt) or not os.path.isfile(flex_pdbqt)
+                    or os.path.getsize(flex_pdbqt) == 0):
                 raise RuntimeError(
-                    "prepare_flexreceptor4.py did not produce rigid/flex PDBQT.\n"
+                    "prepare_flexreceptor4.py produced no flexible residues.\n"
                     f"Residue spec used: {flex_spec}")
             return rec_pdbqt, lig_pdbqt, flex_pdbqt, rigid_pdbqt
 
