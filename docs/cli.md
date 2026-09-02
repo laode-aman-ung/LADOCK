@@ -4,49 +4,54 @@
 Mode utama agent adalah dialog terminal dengan pertanyaan tertutup:
 
 ```bash
-python ladock_agent.py
+python -m ladock.cli.agent
 ```
 
 ## Instalasi sebagai command global
 
-Agar `ladock` bisa dijalankan dari **workspace/direktori mana pun** di PC:
+Satu paket memasang kedua front-end:
 
 ```bash
-pip install -e agent      # dari root repository (editable install)
+pip install ladock
 ```
 
-Ini memasang dua command ke folder Scripts Python (yang ada di PATH):
+Command yang tersedia di PATH sesudahnya:
 
 ```bash
-ladock            # = ladock_agent:main
-ladock-agent      # alias
+ladock-cli        # agen docking berbasis aturan (bukan LLM)
+ladock-desktop    # workstation GUI
 ```
 
-Editable install membuat `__file__` tetap menunjuk ke `ladock/cli/agent.py`,
-sehingga agent tetap menemukan `REPO_ROOT` dan binari bundel di
-`ladock/bin/<platform>` dari direktori kerja mana pun. Contoh dari sembarang
-folder:
+Untuk pengembangan, pasang dari root repository dalam mode editable:
 
 ```bash
-ladock                                   # dialog wizard (job dir = direktori saat ini)
-ladock components target.pdb             # daftar komponen PDB
-ladock dock --receptor r.pdb --ligand l.sdf --center 10 22 -4 --scoring vina --out out/
+pip install -e .
+```
+
+Mode editable membuat `__file__` tetap menunjuk ke `ladock/cli/agent.py`,
+sehingga agen tetap menemukan binari bundel di `ladock/bin/<platform>` dari
+direktori kerja mana pun. Contoh dari sembarang folder:
+
+```bash
+ladock-cli                                   # dialog wizard (job dir = direktori saat ini)
+ladock-cli components target.pdb             # daftar komponen PDB
+ladock-cli dock --receptor r.pdb --ligand l.sdf --center 10 22 -4 --scoring vina --out out/
 ```
 
 Saat wizard dijalankan, **default job directory adalah direktori kerja saat
 ini** (bukan repo), dengan opsi memilih subdirektori di dalamnya atau memakai
-contoh bawaan LADOCK. Untuk melepas: `pip uninstall ladock-agent`.
+contoh bawaan LADOCK. Untuk melepas: `pip uninstall ladock`.
 
 Contoh alur:
 
 ```text
 Selamat datang di LADOCK Agent: agent docking profesional.
 
-ladock > Apa tujuan docking?
+ladock-cli > Apa tujuan docking?
 1. Redocking
 2. Virtual Screening
 
-ladock > Dimana file target(s) berada?
+ladock-cli > Dimana file target(s) berada?
 1. receptor_ready/
 2. target_input/
 ...
@@ -102,8 +107,7 @@ ladock-cli
 atau:
 
 ```bash
-cd agent
-python ladock_agent.py
+python -m ladock.cli.agent
 ```
 
 Dialog akan memandu pilihan:
@@ -164,7 +168,7 @@ ladock-cli dock \
 ## MLSD (Multiple Ligand Simultaneous Docking)
 
 MLSD mendokking **beberapa ligan berbeda sekaligus di dalam satu pocket**
-(bukan satu-satu). Fitur ini mengikuti aturan LADOCK Desktop: **hanya untuk
+(bukan satu-satu). Fitur ini mengikuti aturan LADOCK: **hanya untuk
 Vina/Vinardo** (AD4/AD4-GPU tidak mendukung multi-ligan simultan) dan pada
 konteks **Virtual Screening** (butuh ≥ 2 ligan pada library).
 
@@ -295,7 +299,7 @@ ringkasan.
 Agent memakai binari docking dari (urutan pencarian):
 1. `$LADOCK_AGENT_BIN/<platform>` (jika env di-set),
 2. `$LADOCK_AGENT_BIN/<platform>`,
-3. **`ladock/bin/<platform>`** — binari bundel LADOCK Desktop (default, tanpa setup).
+3. **`ladock/bin/<platform>`** — binari bundel LADOCK (default, tanpa setup).
 
 Sehingga di repository ini agent langsung memakai `ladock/bin/` tanpa menyalin apa pun.
 
