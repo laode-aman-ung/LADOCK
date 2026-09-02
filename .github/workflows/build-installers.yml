@@ -44,7 +44,7 @@ jobs:
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
             /DVariant=${{ matrix.variant }} `
-            "/DSourceDir=build\dist-${{ matrix.variant }}\LADOCK" `
+            "/DSourceDir=${{ github.workspace }}\build\dist-${{ matrix.variant }}\LADOCK" `
             packaging\windows\ladock.iss
       - uses: actions/upload-artifact@v4
         with:
