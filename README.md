@@ -9,7 +9,7 @@
 
 Both share the same engines, the same preparation pipeline, and the same bundled `bin/` tree. Proprietary software — free for academic use, commercial license required for for-profit use (see [License](#license)).
 
-![LADOCK Desktop](ladock_viewer.png)
+![LADOCK Desktop](docs/ladock_viewer.png)
 
 ---
 
