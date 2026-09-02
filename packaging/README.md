@@ -60,49 +60,66 @@ python packaging/package_binaries.py           # → build/bin-archives/bin-<pla
 Each archive has a top-level `<platform>/` folder; exec bits are forced for
 linux/mac so they work even when packaged from Windows.
 
-**2. Host** the three archives on your storage / download host, e.g.
-`https://ladock.ladeep.id/bin/bin-windows.tar.gz` (or a private bucket).
+**2. Host** the three archives. They are attached to the GitHub release, e.g.
+`https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0/bin-windows.tar.gz`
+(a private bucket works too — see `LADOCK_BIN_BASE_URL` below).
 
 **3. Fetch** (CI runs this automatically before each build):
 ```bash
 python -m ladock.binaries <platform>            # downloads + extracts your archive
 ```
-Configure the location with repo secrets (both optional; default base
-`https://ladock.ladeep.id/bin`):
+Configure the location with repo secrets (both optional; the default base is
+the release assets for the current version, see `_DEFAULT_BASE` in
+`ladock/binaries.py`):
 - `LADOCK_BIN_BASE_URL` — base URL of your archives
 - `LADOCK_BIN_TOKEN` — bearer token for private storage
 
 `build_release.py` prunes ADFRsuite at stage time, so your hosted `bin-linux`
 archive may include it or not — either works.
 
-## Hosting the downloads (self-hosted)
+## Hosting the downloads
 
-Downloads are served from **your own host / cloud** (domain `ladock.ladeep.id`),
-not GitHub. The website links (`website/docs.html` → download cards) point to:
+Two channels exist. **GitHub releases is the one in use.**
+
+### GitHub releases (primary)
+
+`ladock/binaries.py` fetches engine archives from release assets by default:
 
 ```
-https://ladock.ladeep.id/downloads/LADOCK-0.3.0-windows-setup.exe
-https://ladock.ladeep.id/downloads/LADOCK-0.3.0-windows-hybrid-setup.exe
-https://ladock.ladeep.id/downloads/ladock-desktop_0.3.0_linux_amd64.deb
-https://ladock.ladeep.id/downloads/LADOCK-0.3.0-linux-x86_64.AppImage
-https://ladock.ladeep.id/downloads/LADOCK-0.3.0-mac.dmg
+https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0/...
 ```
 
-So serve the built installers at `https://ladock.ladeep.id/downloads/` — either as
-real files under that path, or by pointing it at your object storage/CDN. Two ways
-to populate it:
+No separate web host, no certificate to keep alive, and the files are already
+public. The website's download cards (`ladock-website`, `docs.html`) link to
+the releases page rather than to fixed filenames, so they survive a version
+bump without editing.
 
-1. **Manual** — download the CI artifacts and upload them to `…/downloads/`.
-2. **Automatic** — the CI `publish` job uploads every installer via **rclone** to
-   your storage. Set two repo secrets:
-   - `LADOCK_UPLOAD_REMOTE` — e.g. `r2:my-bucket/downloads`
-   - `RCLONE_CONFIG_B64` — base64 of your `rclone.conf` (S3 / Cloudflare R2 /
-     Backblaze B2 / SFTP / WebDAV / …)
-   Then serve that bucket/dir at the site's `/downloads/` (or change the links to
-   absolute URLs if the files live on a different domain/CDN).
+Publishing a release:
 
-Keep the installer filenames in sync with the download links (versioned as
-`0.3.0`); bump both when you release a new version.
+```
+gh release create v0.3.1 --title "LADOCK 0.3.1" --notes "..."
+gh release upload  v0.3.1 <installers and engine archives>
+```
+
+The installer jobs in `build-installers.yml` publish their output as workflow
+artifacts, so download those and attach them to the release.
+
+### Self-hosted (optional, currently unused)
+
+`build-installers.yml` also has an rclone step that copies the installers to
+storage of your choice, driven by two repository secrets:
+
+- `LADOCK_UPLOAD_REMOTE` — e.g. `r2:my-bucket/downloads`
+- `RCLONE_CONFIG_B64` — base64 of your `rclone.conf`
+
+That was meant to serve `https://ladock.ladeep.id/downloads/`. As of
+2026-09-02 that path returns **404** and the live site no longer links to it,
+so the step is dormant. Point new links at the releases page instead; if you
+revive self-hosting, keep the installer filenames in sync with whatever links
+to them.
+
+`LADOCK_BIN_BASE_URL` overrides the engine download base, and
+`LADOCK_BIN_TOKEN` adds an Authorization header for a private host.
 
 ## Status / caveats
 

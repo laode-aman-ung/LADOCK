@@ -35,11 +35,11 @@ yang boleh merilis. Namanya harus `pypi`, sesuai isian di PyPI dan di
 
 ## Setiap rilis
 
-1. Naikkan `version` di `pyproject.toml` (mis. `2.0.1`) dan commit.
+1. Naikkan `version` di `pyproject.toml` (mis. `0.3.1`) dan commit.
 2. Buat GitHub Release dengan tag versinya:
 
    ```bash
-   git tag v2.0.1 && git push origin v2.0.1
+   git tag v0.3.1 && git push origin v0.3.1
    gh release create v0.3.1 --title "LADOCK 0.3.1" --notes "..."
    ```
 
@@ -53,11 +53,13 @@ lengkap, tahap publish dilewati.
 ## Yang tidak boleh dilupakan
 
 - **Nomor versi permanen.** PyPI melarang versi yang sama dipakai ulang, bahkan
-  setelah dihapus. Salah sedikit → rilis 2.0.1.
-- **Biner engine tidak ikut di wheel.** Pastikan arsip di
-  `https://ladock.ladeep.id/bin/` sudah ada sebelum merilis, kalau tidak
+  setelah dihapus. Salah sedikit → rilis 0.3.1.
+- **Arsip engine diambil dari release assets.** `ladock/binaries.py` menunjuk
+  `https://github.com/laode-aman-ung/LADOCK/releases/download/v<versi>/`, jadi
+  unggah arsipnya ke rilis itu sebelum diumumkan — kalau tidak,
   `ladock-fetch-binaries` gagal untuk semua pengguna baru. Buat arsipnya dengan
-  `python packaging/package_binaries.py linux`.
+  `python packaging/package_binaries.py linux`. (Jalur lama
+  `https://ladock.ladeep.id/bin/` sudah tidak dipakai dan mengembalikan 404.)
 - **Pengguna 0.1.x akan terkejut.** Perintah `ladock` dan `ladockgui` hilang,
   diganti `ladock-cli` / `ladock-desktop`, dan lisensinya berubah dari
   Apache-2.0 menjadi lisensi akademik. Sebutkan di catatan rilis.
