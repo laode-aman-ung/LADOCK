@@ -63,9 +63,10 @@ LIGAND_SUFFIXES = {
     ".csv", ".tsv", ".xlsx", ".xls",
 }
 
-# LADOCK academic free license: this version is activated (free, no key) up to
-# this date, mirroring LADOCK Desktop (core/license_manager.py ACADEMIC_FREE_UNTIL).
-LICENSE_FREE_UNTIL = _dt.date(2029, 12, 31)
+# Single source of truth, shared with the desktop front-end. Also brings the
+# wound-back-clock check, which a bare date comparison does not have.
+from ladock.licensing import FREE_UNTIL as LICENSE_FREE_UNTIL, effective_today
+from ladock.licensing import expired as _licensing_expired
 
 
 def is_windows_host() -> bool:
@@ -413,12 +414,12 @@ def print_banner(version: str = __version__) -> None:
 
 
 def license_expired() -> bool:
-    return _dt.date.today() > LICENSE_FREE_UNTIL
+    return _licensing_expired()
 
 
 def license_note() -> str:
     """One-line license status for the CLI (academic free until a fixed date)."""
-    today = _dt.date.today()
+    today = effective_today()
     until = LICENSE_FREE_UNTIL.isoformat()
     if today <= LICENSE_FREE_UNTIL:
         return (sty(glyph("©", "(c)"), "gray") + " "

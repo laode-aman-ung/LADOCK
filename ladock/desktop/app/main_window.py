@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 from ladock.desktop.gui import theme
 from PySide6.QtWidgets import (
+    QMessageBox,
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QLabel, QStackedWidget, QFrame,
     QSizePolicy, QApplication, QStatusBar, QToolBar,
@@ -359,14 +360,32 @@ class MainWindow(QMainWindow):
             self._update_license_status_bar()
 
     def _show_license_required(self):
-        dlg = LicenseDialog(self, require_valid=True)
-        dlg.exec()
-        self._update_license_status_bar()
+        self._require_license_or_quit(
+            "LADOCK is not licensed on this machine.")
 
     def _show_license_expired(self):
+        self._require_license_or_quit(
+            f"The academic free licence ended on {ACADEMIC_FREE_UNTIL.isoformat()}.")
+
+    def _require_license_or_quit(self, reason: str):
+        """Offer the licence dialog; close the app if it is still not licensed.
+
+        The CLI already refuses to run once the free period is over (exit 3).
+        The desktop used to show this dialog and then carry on regardless,
+        which meant the deadline applied to one front-end and not the other.
+        """
         dlg = LicenseDialog(self, require_valid=True)
         dlg.exec()
-        self._update_license_status_bar()
+        if load_license().is_valid:
+            self._update_license_status_bar()
+            return
+        QMessageBox.critical(
+            self, "LADOCK — licence required",
+            f"{reason}\n\n"
+            "LADOCK will now close. Enter a valid licence key to continue "
+            "using it, or contact laode_aman@ung.ac.id.")
+        self._licence_block = True
+        self.close()
 
     def _update_license_status_bar(self):
         info = load_license()

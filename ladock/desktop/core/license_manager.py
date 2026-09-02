@@ -42,7 +42,10 @@ _LICENSE_FILE = _LICENSE_DIR / "license.key"
 # ── Academic free period ─────────────────────────────────────────────────────
 # Every install of this version is licensed (activated) up to this date without
 # needing a key.
-ACADEMIC_FREE_UNTIL = date(2029, 12, 31)
+from ladock.licensing import (  # noqa: E402
+    FREE_UNTIL as ACADEMIC_FREE_UNTIL,
+    effective_today,
+)
 
 
 class LicenseType(str, Enum):
@@ -187,7 +190,7 @@ def load_license() -> LicenseInfo:
     """Load and validate the stored license. Returns MISSING if none found."""
     if not _LICENSE_FILE.exists():
         # Check if still within academic free period (no key needed)
-        if date.today() <= ACADEMIC_FREE_UNTIL:
+        if effective_today() <= ACADEMIC_FREE_UNTIL:
             return LicenseInfo(
                 type=LicenseType.ACADEMIC_FREE,
                 status=LicenseStatus.VALID,
