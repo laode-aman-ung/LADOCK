@@ -124,7 +124,7 @@ class LicenseDialog(QDialog):
         lay.addWidget(act_hint)
 
         self._key_input = QLineEdit()
-        self._key_input.setPlaceholderText("LADOCK-xxxxxxxxxxxxxxxx.yyyyyyyyyyyyyyyy")
+        self._key_input.setPlaceholderText("LADOCK-<payload>.<signature>  — paste the whole key")
         self._key_input.returnPressed.connect(self._activate)
         lay.addWidget(self._key_input)
 

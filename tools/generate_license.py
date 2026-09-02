@@ -1,111 +1,88 @@
 """
-LADOCK License Key Generator (tools/generate_license.py)
+LADOCK licence key generator — owner only.
 
-HANYA untuk digunakan oleh pemilik LADOCK (La Ode Aman).
-Jalankan dari root direktori LADOCK:
+Signing needs the Ed25519 private key, which is deliberately NOT part of the
+distribution. Keep it out of every repository and back it up somewhere safe:
+losing it means no new keys can be issued, and leaking it means anyone can
+issue them.
 
-  python tools/generate_license.py
+    python tools/generate_license.py
 
-Kunci yang dihasilkan dikirim ke pengguna via email.
+Key location, in order: --key, $LADOCK_SIGNING_KEY, ~/.ladock-signing/license_ed25519.pem
 """
 
-import sys
+from __future__ import annotations
+
+import argparse
+import base64
+import json
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from core.license_manager import generate_key, LicenseType
+import sys
 from datetime import date, timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from ladock.desktop.core.license_manager import LicenseType, validate_key  # noqa: E402
+
+_DEFAULT_KEY = Path.home() / ".ladock-signing" / "license_ed25519.pem"
 
 
-def main():
-    print("=" * 60)
-    print("  LADOCK License Key Generator")
-    print("  Copyright (c) 2024 La Ode Aman")
-    print("=" * 60)
-    print()
-
-    # Pilih jenis lisensi
-    print("Jenis Lisensi:")
-    print("  1. Academic Free      (gratis untuk semua s/d 2029-12-31)")
-    print("  2. Academic Discount  (diskon pasca-2029)")
-    print("  3. Commercial         (berbayar, perpetual)")
-    print()
-
-    choice = input("Pilih [1/2/3]: ").strip()
-    if choice == "1":
-        ltype   = LicenseType.ACADEMIC_FREE
-        expires = "2029-12-31"
-    elif choice == "2":
-        ltype = LicenseType.ACADEMIC_DISCOUNT
-        print()
-        exp_input = input("Tanggal kadaluarsa (YYYY-MM-DD, kosongkan = 1 tahun): ").strip()
-        expires   = exp_input if exp_input else (
-            date.today().replace(year=date.today().year + 1).isoformat()
+def _load_private_key(explicit: str | None):
+    path = Path(explicit or os.environ.get("LADOCK_SIGNING_KEY") or _DEFAULT_KEY)
+    if not path.is_file():
+        raise SystemExit(
+            f"Private signing key not found at {path}.\n"
+            "Set --key or $LADOCK_SIGNING_KEY. This file is never distributed;\n"
+            "if it is lost, no further keys can be issued for the shipped public key."
         )
-    elif choice == "3":
-        ltype   = LicenseType.COMMERCIAL
-        expires = None  # perpetual
-    else:
-        print("Pilihan tidak valid.")
-        sys.exit(1)
+    from cryptography.hazmat.primitives import serialization
+    return serialization.load_pem_private_key(path.read_bytes(), password=None)
 
-    print()
-    name  = input("Nama penerima / institusi : ").strip()
-    email = input("Email institusi           : ").strip()
 
-    if not name or not email:
-        print("Nama dan email wajib diisi.")
-        sys.exit(1)
+def issue(license_type: str, name: str, email: str,
+          expires: str | None, private_key) -> str:
+    payload = {
+        "type":    license_type,
+        "name":    name,
+        "email":   email,
+        "issued":  date.today().isoformat(),
+        "expires": expires,
+    }
+    payload_b64 = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode()).decode()
+    signature = base64.urlsafe_b64encode(
+        private_key.sign(payload_b64.encode())).decode().rstrip("=")
+    return f"LADOCK-{payload_b64}.{signature}"
 
-    key = generate_key(
-        license_type=ltype.value,
-        name=name,
-        email=email,
-        expires=expires,
-    )
 
-    print()
-    print("=" * 60)
-    print("  LICENSE KEY GENERATED")
-    print("=" * 60)
-    print()
-    print(f"  Type    : {ltype.value}")
-    print(f"  Name    : {name}")
-    print(f"  Email   : {email}")
-    print(f"  Expires : {expires or 'Perpetual (no expiry)'}")
-    print()
-    print("  KEY:")
-    print()
-    print(f"  {key}")
-    print()
-    print("=" * 60)
-    print()
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Issue a LADOCK licence key.")
+    ap.add_argument("--type", default="ACADEMIC_DISCOUNT",
+                    choices=[t.value for t in LicenseType if t != LicenseType.UNLICENSED])
+    ap.add_argument("--name", required=True)
+    ap.add_argument("--email", required=True)
+    ap.add_argument("--years", type=int, default=1,
+                    help="validity in years; 0 = perpetual (commercial only)")
+    ap.add_argument("--key", help="path to the Ed25519 private key")
+    args = ap.parse_args()
 
-    # Simpan ke file log
-    log_dir  = os.path.join(os.path.dirname(__file__), "issued_licenses")
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, "issued.txt")
+    expires = None if args.years == 0 else (
+        date.today() + timedelta(days=365 * args.years)).isoformat()
 
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(f"\n{'='*60}\n")
-        f.write(f"Date    : {date.today().isoformat()}\n")
-        f.write(f"Type    : {ltype.value}\n")
-        f.write(f"Name    : {name}\n")
-        f.write(f"Email   : {email}\n")
-        f.write(f"Expires : {expires or 'Perpetual'}\n")
-        f.write(f"Key     : {key}\n")
+    key = issue(args.type, args.name, args.email, expires,
+                _load_private_key(args.key))
 
-    print(f"  Log disimpan di: tools/issued_licenses/issued.txt")
-    print()
+    info = validate_key(key)
+    if not info.is_valid:
+        raise SystemExit(f"Refusing to hand out a key that does not validate: {info.message}")
 
-    # Salin ke clipboard jika tersedia
-    try:
-        import pyperclip
-        pyperclip.copy(key)
-        print("  ✅ Kunci disalin ke clipboard.")
-    except ImportError:
-        print("  (Install pyperclip untuk salin otomatis ke clipboard)")
+    print(f"\n  type    : {args.type}")
+    print(f"  for     : {args.name} <{args.email}>")
+    print(f"  expires : {expires or 'perpetual'}")
+    print(f"\n{key}\n")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -36,6 +36,9 @@ dependencies = [
     "PySide6>=6.5",
     "numpy>=1.24",
     "pandas>=2.0",
+    # Ed25519 verification for licence keys. Verification only —
+    # the private key is never distributed.
+    "cryptography>=41",
     # Molecular preparation: fix/sanitize, add H, Gasteiger charges, 3D embed,
     # and 2D SMILES depiction.
     "rdkit>=2023.3",

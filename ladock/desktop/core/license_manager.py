@@ -23,7 +23,6 @@ Payload (JSON):
 """
 
 import json
-import hmac
 import hashlib
 import base64
 import os
@@ -33,7 +32,9 @@ from enum import Enum
 
 # ── Secret key (embedded, offline validation) ────────────────────────────────
 # Keep this consistent across all LADOCK releases.
-_SECRET = b"LADOCK-La-Ode-Aman-2024-UNG-acId-$3cur3"
+# The signing secret used to live here, which meant every user received it and
+# could mint their own perpetual licence. Signing now happens only where the
+# Ed25519 private key is — see tools/generate_license.py.
 
 # ── License storage path ─────────────────────────────────────────────────────
 _LICENSE_DIR  = Path.home() / ".ladock"
@@ -43,6 +44,7 @@ _LICENSE_FILE = _LICENSE_DIR / "license.key"
 # Every install of this version is licensed (activated) up to this date without
 # needing a key.
 from ladock.licensing import (  # noqa: E402
+    verify_signature,
     FREE_UNTIL as ACADEMIC_FREE_UNTIL,
     effective_today,
 )
@@ -104,28 +106,24 @@ class LicenseInfo:
 
 # ── Core functions ────────────────────────────────────────────────────────────
 
-def _sign(payload_b64: str) -> str:
-    sig = hmac.new(_SECRET, payload_b64.encode(), hashlib.sha256).hexdigest()
-    return sig[:32]  # 32 hex chars — compact but sufficient
+def _verify(payload_b64: str, signature_b64: str) -> bool:
+    """Check an Ed25519 signature over the payload using the shipped public key."""
+    try:
+        sig = base64.urlsafe_b64decode(signature_b64 + "=" * (-len(signature_b64) % 4))
+    except Exception:
+        return False
+    return verify_signature(payload_b64.encode(), sig)
 
 
-def generate_key(license_type: str, name: str, email: str,
-                 expires: str | None = None) -> str:
+def generate_key(*_args, **_kwargs):
+    """Removed from the client on purpose.
+
+    Issuing a licence needs the Ed25519 private key, which is not distributed.
+    Use tools/generate_license.py on the owner's machine.
     """
-    Generate a license key. Called by the owner tool (tools/generate_license.py).
-    expires: "YYYY-MM-DD" or None (perpetual, for commercial)
-    """
-    payload = {
-        "type":    license_type,
-        "name":    name,
-        "email":   email,
-        "issued":  date.today().isoformat(),
-        "expires": expires,
-    }
-    payload_json  = json.dumps(payload, separators=(",", ":"))
-    payload_b64   = base64.urlsafe_b64encode(payload_json.encode()).decode()
-    signature     = _sign(payload_b64)
-    return f"LADOCK-{payload_b64}.{signature}"
+    raise RuntimeError(
+        "Licence keys can only be issued with the private signing key; "
+        "run tools/generate_license.py on the owner's machine.")
 
 
 def validate_key(key: str) -> LicenseInfo:
@@ -141,8 +139,14 @@ def validate_key(key: str) -> LicenseInfo:
         payload_b64, sig = inner.rsplit(".", 1)
 
         # Verify signature
-        expected = _sign(payload_b64)
-        if not hmac.compare_digest(sig, expected):
+        if not _verify(payload_b64, sig):
+            # A 32-hex signature is a key from the old HMAC scheme. Those were
+            # forgeable by anyone who had the software, so they are not honoured.
+            if len(sig) == 32 and all(c in "0123456789abcdef" for c in sig):
+                return LicenseInfo(
+                    type=LicenseType.UNLICENSED, status=LicenseStatus.INVALID,
+                    message="This key uses the retired signing scheme. "
+                            "Please request a replacement key.")
             return LicenseInfo(type=LicenseType.UNLICENSED,
                                status=LicenseStatus.INVALID,
                                message="License key is invalid or has been tampered with.")

@@ -27,6 +27,33 @@ from pathlib import Path
 # Free for everyone, no key required, up to and including this date.
 FREE_UNTIL = _dt.date(2029, 12, 31)
 
+# Ed25519 public key for licence verification. Safe to ship: it can check a
+# signature but cannot produce one. The matching private key never leaves the
+# owner's machine, which is the whole point of the change away from HMAC —
+# that scheme put the signing secret in every copy of the software, so any
+# user could mint themselves a perpetual commercial licence.
+LICENSE_PUBLIC_KEY_B64 = "VEBpxmHndDWvQon3YKzcuMZv7Y6nl45mOy+0QQb5mUg="
+
+
+def verify_signature(payload: bytes, signature: bytes) -> bool:
+    """True if `signature` was produced by the owner's private key."""
+    try:
+        import base64
+        from cryptography.exceptions import InvalidSignature
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PublicKey,
+        )
+        key = Ed25519PublicKey.from_public_bytes(
+            base64.b64decode(LICENSE_PUBLIC_KEY_B64))
+        try:
+            key.verify(signature, payload)
+            return True
+        except InvalidSignature:
+            return False
+    except Exception:
+        # A missing or broken crypto stack must not silently accept keys.
+        return False
+
 # Highest date the software has ever seen. Compared against the clock so that
 # winding it back does not hand out extra time.
 _STATE_DIR = Path(os.environ.get("LADOCK_HOME", Path.home() / ".ladock"))

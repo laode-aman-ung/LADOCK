@@ -11,3 +11,4 @@
 # The docking engines themselves are NOT Python packages — fetch them after
 # installing with:  ladock-fetch-binaries
 .
+cryptography>=41
