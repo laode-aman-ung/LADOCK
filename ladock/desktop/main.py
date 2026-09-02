@@ -72,8 +72,9 @@ def main() -> int:
 
     # Show welcome dialog on first launch or if no recent projects
     settings = QSettings("LADOCK", "Desktop")
-    show_welcome = settings.value("show_welcome", True)
-    if show_welcome:
+    # QSettings returns "false" (a str) for booleans on the native backend,
+    # and a non-empty string is truthy — always read booleans with type=bool.
+    if settings.value("show_welcome", True, type=bool):
         dlg = WelcomeDialog(window)
         dlg.project_chosen.connect(window._project_mgr.set_project)
         dlg.exec()

@@ -41,11 +41,16 @@ Karena itu tidak ada classifier `License :: OSI Approved` di pyproject.
 
 ## Repositori terkait
 
+Hanya ada **satu** repo kode. `ladock-cli` dan `ladock-desktop` adalah nama
+perintah, bukan nama repositori — jangan pernah membuat repo dengan nama itu.
+
 | Repo | Status | Isi |
 |---|---|---|
-| `laode-aman-ung/LADOCK` | publik | repo ini — CLI + Desktop 0.3.0 |
-| `laode-aman-ung/ladock-desktop` | privat | LADOCK Desktop 2.0, GUI lama berbasis PySide6 |
-| `laode-aman-ung/ladock-riset` | privat | HKI, naskah, luaran hibah, laporan pengujian |
+| `laode-aman-ung/LADOCK` | publik | repo ini — produk lengkap, kedua mode |
+| `laode-aman-ung/ladock-riset` | privat | HKI, naskah, luaran hibah, pengujian per tahun |
+
+Repo `ladock-desktop` pernah ada berisi snapshot GUI 2.0.0 yang sudah
+didahului oleh `ladock/desktop/` di sini. Repo itu dibubarkan 2026-09-02.
 
 ## Struktur
 
@@ -109,13 +114,38 @@ rclone sync gdrive:riset/LADOCK/bin ~/riset/LADOCK/ladock/bin        # dari Driv
 
 ## Hal yang perlu diketahui sebelum mengubah apa pun
 
-1. Cabang `main` **tertinggal** dari cabang kerja
-   `ladock-cli-agent-multireceptor`. Halaman repo yang dilihat pembaca naskah
-   menampilkan struktur lama (`desktop/`), bukan struktur `ladock/` sekarang.
-2. `README.md` merujuk gambar `ladock_viewer.png` yang tidak ada di repo —
-   tautan gambarnya rusak di halaman GitHub.
-3. Riwayat kedua cabang ditulis ulang pada 2026-09-02. Siapa pun yang punya
-   klon lama harus `git fetch && git reset --hard origin/<cabang>`.
+Audit 2026-09-02 atas 49 berkas / 21.101 baris di `ladock/`, **tidak termasuk**
+`ladock/bin/` yang berisi pustaka pihak ketiga (ADFRsuite, MGLTools). Setiap
+pengukuran atas basis kode ini harus mengecualikan `bin/`, kalau tidak
+angkanya membengkak sepuluh kali lipat dan menyesatkan.
+
+Kondisi yang sehat dan sebaiknya dipertahankan:
+
+- Nol `shell=True`, nol perintah yang dirakit dari f-string. Semua pemanggilan
+  proses eksternal memakai daftar argv.
+- Nol `except:` telanjang.
+- Tidak ada definisi ganda dalam satu scope.
+- `core/tool_paths.py` memilih binary per-platform (windows/linux/mac) dan
+  punya mode hybrid: GUI Windows melempar mesin Linux-only ke WSL.
+
+Yang masih terbuka:
+
+1. **`gui/widgets/tool_status_widget.py` (159 baris) tidak pernah diimpor.**
+   Kandidat hapus.
+2. **Duplikasi panel docking.** 59% baris `gui/panels/ligand_test_panel.py`
+   identik dengan `native_redocking_panel.py` — worker, parser keluaran,
+   deteksi tool, dan penulis CSV diduplikasi. Kandidat ekstraksi kelas basis.
+3. **35 blok `except` berakhir `pass`/`continue`,** menelan galat tanpa jejak.
+4. **Tidak ada `logging` sama sekali** di 49 berkas; diagnostik mengandalkan
+   `print` dan sinyal Qt.
+5. **Tes hanya menutupi CLI.** 68 fungsi tes di `tests/test_cli_agent.py`,
+   seluruhnya mengimpor `ladock.cli.agent`. Mode desktop tidak diuji sama
+   sekali. Kandidat pertama yang mudah: fungsi murni di
+   `engine/interaction_analyzer.py` dan `data/result_parser.py`.
+
+Sudah diperbaiki 2026-09-02: `set_job_dir` yang terdefinisi dua kali di
+`ligand_test_panel.py`, dan `show_welcome` yang dibaca tanpa `type=bool`
+sehingga string `"false"` selalu bernilai benar.
 
 ## Aturan sesi
 

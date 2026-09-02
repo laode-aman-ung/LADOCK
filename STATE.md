@@ -29,6 +29,13 @@ penyiapan sinkronisasi dan tidak saya sentuh.
 
 ## Keputusan terakhir
 
+- 2026-09-02 — Arsitektur final: SATU repo kode (`LADOCK`, publik, mencakup
+  kedua mode) + SATU repo riset privat (`ladock-riset`, dipecah per tahun).
+  Repo `ladock-desktop` dibubarkan; isinya snapshot GUI 2.0.0 yang sudah
+  didahului `ladock/desktop/`.
+- 2026-09-02 — Deskripsi dan topik repo GitHub diperbarui agar mencakup kedua
+  mode, bukan hanya desktop.
+
 - 2026-09-02 — Repo tetap **publik** karena tautannya sudah tercantum di
   naskah. Materi sensitif dipindahkan ke repo privat `ladock-riset`, bukan
   disimpan di sini seperti rencana awal.

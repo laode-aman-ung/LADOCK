@@ -848,17 +848,7 @@ class LigandTestPanel(QWidget):
             self._watcher.addPath(d)
         self._refresh_receptor_list()
         self._refresh_ligand_list()
-
-    def set_job_dir(self, path: str):
-        self._job_dir = path
-        if self._watcher.directories():
-            self._watcher.removePaths(self._watcher.directories())
-        for subdir in ("receptor_ready", "ligand_input"):
-            d = os.path.join(path, subdir)
-            os.makedirs(d, exist_ok=True)
-            self._watcher.addPath(d)
-        self._refresh_receptor_list()
-        self._refresh_ligand_list()
+        # Leave the "no project" placeholder and show the main content
         self._stack.setCurrentIndex(1)
 
     # ------------------------------------------------------------------ #
