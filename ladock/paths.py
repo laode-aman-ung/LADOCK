@@ -38,8 +38,12 @@ def _frozen_root() -> Path | None:
 def bin_root() -> Path:
     """Directory holding the per-platform engine binaries (``bin/<platform>/``).
 
-    ``LADOCK_BIN`` overrides it, which is how a user points LADOCK at binaries
-    installed outside the package (e.g. a shared read-only site-packages).
+    Order: ``LADOCK_BIN`` wins, then the frozen bundle, then wherever the
+    binaries already are, and finally the first writable place to put them.
+    That last step matters for ``pip install``: site-packages is often read-only
+    (system Python, root-owned virtualenvs), and the engines are downloaded
+    after installation — so they fall back to the user's cache directory
+    instead of failing.
     """
     override = os.environ.get("LADOCK_BIN", "").strip()
     if override:
@@ -47,7 +51,13 @@ def bin_root() -> Path:
     frozen = _frozen_root()
     if frozen is not None:
         return frozen / "bin"
-    return PACKAGE_ROOT / "bin"
+    packaged = PACKAGE_ROOT / "bin"
+    if packaged.is_dir():
+        return packaged
+    user_owned = cache_root() / "bin"
+    if user_owned.is_dir():
+        return user_owned
+    return packaged if os.access(PACKAGE_ROOT, os.W_OK) else user_owned
 
 
 def platform_name(use_wsl_backend: bool = False) -> str:

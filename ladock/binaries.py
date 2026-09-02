@@ -156,6 +156,37 @@ def fetch_platform(platform: str, dest_root: Path | None = None) -> None:
         f"LADOCK_BIN_BASE_URL / LADOCK_BIN_TOKEN.")
 
 
+def binaries_present(platform: str | None = None) -> bool:
+    target = bin_root() / (platform or platform_name())
+    return target.is_dir() and any(target.iterdir())
+
+
+def ensure_platform_binaries(quiet: bool = False) -> bool:
+    """Download this platform's engines if they are not there yet.
+
+    Called before docking so ``pip install ladock`` is followed straight by
+    ``ladock-cli`` — no separate fetch step for the user to know about. It is a
+    no-op once the binaries exist, and a failure here is not fatal: the caller
+    still reports the missing engine in its own terms.
+    """
+    if binaries_present():
+        return True
+    if not quiet:
+        print("Docking engines are not installed yet — downloading them once "
+              f"into {bin_root()} …", flush=True)
+    try:
+        fetch_platform(platform_name())
+    except SystemExit as exc:
+        if not quiet:
+            print(f"  Could not download the engines: {exc}", flush=True)
+        return False
+    except Exception as exc:  # noqa: BLE001 - never block docking on this
+        if not quiet:
+            print(f"  Could not download the engines: {exc}", flush=True)
+        return False
+    return binaries_present()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(argv) if argv is not None else sys.argv[1:]
     if "--fix-permissions" in args:
