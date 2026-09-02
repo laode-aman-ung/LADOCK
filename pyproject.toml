@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ladock"
-version = "0.3.0"
+version = "0.3.1"
 description = "Molecular docking workstation — PySide6 desktop app and rule-based (non-LLM) CLI agent"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -78,21 +78,20 @@ include = ["ladock*"]
 # after install, never shipped in the wheel.
 exclude = ["ladock.bin*", "packaging*", "scripts*", "tools*", "website*", "HAKI*"]
 
-[tool.setuptools.exclude-package-data]
-# The comment above is only true if ADFRsuite is actually kept out. Without
-# this, bin/**/* sweeps in all 373 MB of it and the wheel lands at ~260 MB,
-# far over PyPI's 100 MB per-file limit.
-"ladock" = ["bin/*/ADFRsuite-1.0/**"]
-
 [tool.setuptools.package-data]
-# The wheel published to PyPI carries no engines: ladock/bin/ is git-ignored,
-# so a clean CI checkout has nothing for this glob to match and the wheel comes
-# to about 0.5 MB. That is deliberate — an 89 MB wheel would sit against PyPI's
-# 100 MB per-file limit with no room to grow.
+# setuptools never packages ladock/bin/. That is deliberate, and it is why no
+# glob for it appears here:
 #
-# Engines arrive on first use instead: ensure_platform_binaries() downloads the
-# archive for the running platform from the GitHub release, or `ladock-fetch-
-# binaries` does it explicitly. A build made where bin/ is populated (a release
-# machine) will bundle them, minus ADFRsuite.
+#   * the wheel on PyPI stays around 0.5 MB. Bundling the engines put it at
+#     89 MB, against a 100 MB per-file limit, with ADFRsuite alone pushing it
+#     to 260 MB — over the limit outright.
+#   * users get the engines at first use through ensure_platform_binaries(),
+#     or explicitly with `ladock-fetch-binaries`, both pulling the archives
+#     attached to the GitHub release.
+#   * the desktop installers do not need it either: packaging/build_release.py
+#     copies bin/<platform> into the frozen app itself.
+#
+# So a wheel built on a machine where bin/ is populated is still small, and
+# cannot be uploaded fat by accident.
 "ladock.desktop.gui" = ["assets/*.html", "assets/*.js", "assets/*.css", "assets/*.ico", "assets/*.png"]
 "ladock.desktop.config" = ["*.txt", "*.csv", "*.mol", "*.mol2", "*.pdb", "*.smi", "*.sdf", "*.uri", "model_example/*"]

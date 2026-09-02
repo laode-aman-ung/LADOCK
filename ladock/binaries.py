@@ -46,6 +46,10 @@ PLATFORMS = ("windows", "linux", "mac")
 # Default to the GitHub release assets: they need no separate web host, no
 # certificate to keep alive, and they are already public. `or default` so an
 # empty env var (e.g. an unset CI secret) falls back cleanly.
+# Pinned to the release that actually carries bin-*.tar.gz, which is NOT
+# necessarily the current package version: 0.3.1 changes only metadata, and the
+# engines are unchanged, so re-uploading 187 MB to a new tag would be waste.
+# Only move this when a release genuinely ships new engine archives.
 _DEFAULT_BASE = "https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0"
 _BASE = (os.environ.get("LADOCK_BIN_BASE_URL") or _DEFAULT_BASE).rstrip("/")
 _TOKEN = (os.environ.get("LADOCK_BIN_TOKEN") or "").strip()
