@@ -39,5 +39,10 @@ mv "$APPDIR/AImRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 
 # appimagetool must be on PATH (installed by the CI workflow).
+#
+# It refuses to run without ARCH and only says so at the very end, after the
+# whole AppDir has been assembled — set it here so the script works the same
+# way on a developer machine as it does in CI.
+export ARCH="${ARCH:-x86_64}"
 appimagetool "$APPDIR" "$OUT/LADOCK-${APPVER}-${VERSION}-x86_64.AppImage"
 echo "AppImage: $OUT/LADOCK-${APPVER}-${VERSION}-x86_64.AppImage"

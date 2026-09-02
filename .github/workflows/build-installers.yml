@@ -23,6 +23,8 @@ jobs:
   windows:
     runs-on: windows-latest
     strategy:
+      # One flaky download must not cancel a sibling that is already building.
+      fail-fast: false
       matrix:
         variant: [windows, windows-hybrid]
     steps:
