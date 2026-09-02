@@ -1,8 +1,15 @@
-# LADOCK Desktop
+# LADOCK
 
-**Molecular docking workstation** built on the LADOCK pipeline, with a modern PySide6 GUI and dark Catppuccin theme. Proprietary software — free for academic use, commercial license required for for-profit use (see [License](#license)).
+**Molecular docking workstation** built on the LADOCK pipeline, shipped as one package with two front-ends:
 
-![LADOCK Desktop](ladock_viewer.png)
+| Command | What it is |
+|---------|------------|
+| `ladock-desktop` | PySide6 GUI workstation, dark Catppuccin theme |
+| `ladock-cli` | Rule-based (non-LLM) docking agent — guided wizard or fully scripted |
+
+Both share the same engines, the same preparation pipeline, and the same bundled `bin/` tree. Proprietary software — free for academic use, commercial license required for for-profit use (see [License](#license)).
+
+![LADOCK Desktop](docs/screenshot-viewer.png)
 
 ---
 
@@ -34,63 +41,60 @@
 
 ## Installation
 
-The desktop application lives in the `desktop/` subdirectory.
-
-### Windows
-
-```bat
-# Clone the repository
-git clone https://github.com/your-org/ladock-desktop.git
-cd ladock-desktop/desktop
-
-# Install dependencies (Miniconda/Anaconda recommended)
-# This includes RDKit, used by the molecular preparation engine.
-python -m pip install -e .
-```
-
-### Linux / WSL
+One install provides both commands (Miniconda/Anaconda recommended on Windows):
 
 ```bash
-git clone https://github.com/your-org/ladock-desktop.git
-cd ladock-desktop/desktop
+pip install ladock
+```
+
+> **Upgrading from LADOCK 0.1.x?** Releases up to `0.1.6` (March 2024) were a
+> different, Apache-2.0 licensed command-line tool published under the same PyPI
+> name. Version 2.0 is a rewrite with new commands (`ladock-cli`,
+> `ladock-desktop`) and a different licence — see [License](#license). Pin
+> `ladock==0.1.6` if you depend on the old behaviour.
+
+From a source checkout:
+
+```bash
+git clone https://github.com/laode-aman-ung/LADOCK.git
+cd LADOCK
 pip install -e .
 ```
+
+The docking engines are far too large for a wheel, so they are fetched once,
+after install:
+
+```bash
+ladock-fetch-binaries
+```
+
+That downloads `bin/<platform>/` into the package. If the install directory is
+read-only, put the binaries anywhere and point `LADOCK_BIN` at them.
 
 ---
 
 ## Usage
 
-All launchers live in `desktop/`.
-
-### Windows
-
-Double-click `desktop/ladock.bat`, or from a terminal:
-
-```bat
-cd desktop
-ladock.bat
-```
-
-### Linux / macOS
-
 ```bash
-cd desktop
-bash ladock.sh
+ladock-desktop        # GUI workstation
+ladock-cli            # guided docking wizard
+ladock-cli dock --receptor rec.pdb --ligand lib.sdf --out results/ --native-ligand LIG
 ```
+
+Equivalent module invocations — `python -m ladock.desktop`, `python -m ladock.cli` —
+work from a source checkout without installing.
 
 ### WSL (Windows Subsystem for Linux)
 
+AutoDock4 / AutoDock-GPU are Linux-only. Run LADOCK inside WSL, or from Windows:
+
 ```bat
-cd desktop
-ladock-wsl.bat
+scripts\ladock-wsl.bat
 ```
 
-### Python (cross-platform)
-
-```bash
-cd desktop
-python main.py
-```
+The launcher scripts in `scripts/` (`ladock.sh`, `ladock.bat`, `ladock.ps1`,
+`install.*`) remain for source checkouts and desktop shortcuts; they discover a
+suitable Python and start the same entry points.
 
 ---
 
@@ -98,28 +102,35 @@ python main.py
 
 ```
 LADOCK/
-├── desktop/              # LADOCK Desktop application
-│   ├── app/              # Application layer (main window, dialogs, project manager)
-│   ├── core/             # Core utilities (job models, WSL backend, tool paths)
-│   ├── data/             # Data models (project, result parser)
-│   ├── engine/           # Molecule prep, interaction analyzer, tool detector
-│   ├── gui/              # Theme and UI panels
-│   │   └── panels/       # Docking prep, redocking, lig test, jobs, results
-│   ├── bin/              # Bundled binaries, split per platform:
-│   │   ├── windows/      #   Vina (native .exe)
-│   │   ├── linux/        #   Vina, AutoDock4/AutoGrid4, AD-GPU, ADFRsuite, MGLTools
-│   │   └── mac/          #   Vina (native)
-│   ├── main.py           # Entry point
-│   └── ladock.bat/.sh    # Launchers (+ install.*, ladock-wsl.*)
-├── website/             # Project website (static HTML/CSS/JS)
-└── HAKI/                # Intellectual property (HakCipta, Merek)
+├── ladock/               # The installed package (distribution: "ladock")
+│   ├── paths.py          # Where bin/ and bundled resources live (shared)
+│   ├── binaries.py       # `ladock-fetch-binaries`
+│   ├── cli/              # `ladock-cli` — rule-based docking agent
+│   │   └── agent.py      #   wizard, dock/components/prepare-receptor commands
+│   ├── desktop/          # `ladock-desktop` — GUI workstation
+│   │   ├── main.py       #   entry point
+│   │   ├── app/          #   main window, dialogs, project manager
+│   │   ├── core/         #   job models, WSL backend, tool paths, licensing
+│   │   ├── data/         #   project model, result parser
+│   │   ├── engine/       #   molecule prep, interaction analyzer, tool detector
+│   │   ├── gui/          #   theme, panels, 3D viewer, assets
+│   │   └── config/       #   example inputs
+│   └── bin/              # Engine binaries, per platform (fetched, not in git):
+│       ├── windows/      #   Vina (native .exe)
+│       ├── linux/        #   Vina, AutoDock4/AutoGrid4, AD-GPU, ADFRsuite, MGLTools
+│       └── mac/          #   Vina (native)
+├── scripts/              # Launchers & installers for source checkouts
+├── packaging/            # Release staging, PyInstaller spec, OS installers
+├── docs/                 # CLI agent documentation
+├── website/              # Project website (static HTML/CSS/JS)
+└── HAKI/                 # Intellectual property (HakCipta, Merek)
 ```
 
 ---
 
 ## Bundled Tools
 
-Binaries are bundled per platform under `bin/<platform>/` and require no separate installation:
+Binaries live per platform under `ladock/bin/<platform>/`, fetched once with `ladock-fetch-binaries`:
 
 | Tool | Version | windows | linux | mac |
 |------|---------|:-------:|:-----:|:---:|
@@ -163,7 +174,7 @@ If you use LADOCK in your research, please cite:
 
 LADOCK Desktop is **proprietary software** — Copyright (c) 2024 La Ode Aman. All rights reserved. See [LICENSE](LICENSE) for the full terms.
 
-- **Free non-commercial use (2024–2030):** free of charge for **everyone** — students, academics, independent researchers, and the general public — for non-commercial research, study, teaching, and evaluation. **No registration, institutional email, or license key is required**; the app activates the free academic license automatically until December 31, 2030. Subject to the citation requirement above.
+- **Free non-commercial use (2024–2029):** free of charge for **everyone** — students, academics, independent researchers, and the general public — for non-commercial research, study, teaching, and evaluation. **No registration, institutional email, or license key is required**; the app activates the free academic license automatically until December 31, 2029. Subject to the citation requirement above.
 - **Commercial use:** requires a paid **commercial license** (for-profit companies, CROs, pharmaceutical/biotech firms, or any commercial R&D). Contact the licensor at laode_aman@ung.ac.id.
 
 This is **not** an open-source license. Redistribution, sublicensing, and resale are not permitted.
