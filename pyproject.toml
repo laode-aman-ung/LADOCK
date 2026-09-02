@@ -75,6 +75,12 @@ include = ["ladock*"]
 # after install, never shipped in the wheel.
 exclude = ["ladock.bin*", "packaging*", "scripts*", "tools*", "website*", "HAKI*"]
 
+[tool.setuptools.exclude-package-data]
+# The comment above is only true if ADFRsuite is actually kept out. Without
+# this, bin/**/* sweeps in all 373 MB of it and the wheel lands at ~260 MB,
+# far over PyPI's 100 MB per-file limit.
+"ladock" = ["bin/*/ADFRsuite-1.0/**"]
+
 [tool.setuptools.package-data]
 # Ship the engine executables inside the wheel so `pip install ladock` is
 # immediately followed by `ladock-cli` — no fetch step for the user.
