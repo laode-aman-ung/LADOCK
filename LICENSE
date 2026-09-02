@@ -1,12 +1,22 @@
-LADOCK Desktop Software License
-Copyright (c) 2024 La Ode Aman
+LADOCK Software License
+Copyright (c) 2024-2026 La Ode Aman
 All rights reserved.
+
+Registered with the Directorate General of Intellectual Property (DJKI),
+Ministry of Law, Republic of Indonesia:
+
+  Surat Pencatatan Ciptaan No. 001413018
+  Application EC002026141582, 13 August 2026
+  Title      LADOCK - Molecular Docking Workstation
+  Type       Computer Program
+  Author and rights holder: Dr. La Ode Aman, M.Si
+  First published 27 June 2026; protected for 50 years from that date.
 
 ================================================================================
 ACADEMIC FREE LICENSE (Limited Period: 2024 – 2029)
 ================================================================================
 
-During the period of January 1, 2024 through December 31, 2029, LADOCK Desktop
+During the period of January 1, 2024 through December 31, 2029, LADOCK
 is made available FREE OF CHARGE to EVERYONE for non-commercial use, under
 the following conditions:
 
@@ -34,7 +44,7 @@ AFTER DECEMBER 31, 2029
 COMMERCIAL LICENSE
 ================================================================================
 
-Any use of LADOCK Desktop by a for-profit company, contract research
+Any use of LADOCK by a for-profit company, contract research
 organization (CRO), pharmaceutical company, biotechnology firm, or any entity
 using LADOCK for commercial purposes requires a COMMERCIAL LICENSE, regardless
 of the date.
@@ -55,7 +65,7 @@ GENERAL TERMS (ALL USERS)
 ================================================================================
 
 1. OWNERSHIP
-   LADOCK Desktop, including all source code, binaries, documentation, and
+   LADOCK, including all source code, binaries, documentation, and
    associated materials, is and remains the exclusive intellectual property
    of La Ode Aman.
 
