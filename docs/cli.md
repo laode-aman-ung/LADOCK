@@ -165,6 +165,77 @@ ladock-cli dock \
   --out results/flex_agent
 ```
 
+## Berkas konfigurasi
+
+`ladock-cli dock` membaca `ladock_config.txt` dari direktori kerja bila ada.
+Formatnya `key: value` dengan komentar `#` — sengaja sama persis dengan
+`gmx_config.txt` milik LAGMX, karena dua alat dalam satu alur kerja tidak
+seharusnya memaksa pengguna belajar dua dialek konfigurasi.
+
+```text
+# Kantong substrat berada di antarmuka subunit, jadi reseptornya trimer utuh.
+receptor: target/siap/thim_trimer_noMg.pdb
+ligand: ligan/pustaka_3d.sdf
+size: 16 16 16
+scoring: vina vinardo ad4 ad4gpu adfr
+mode: rigid flexible
+flex_distance: 6.0
+exhaustiveness: 32
+cpu: 4
+jobs: 8
+seed: 42
+```
+
+**Flag di command line selalu menang.** Yang ditaruh di berkas adalah hal yang
+sama untuk semua run; yang berbeda per run tetap diberikan lewat argumen:
+
+```bash
+ladock-cli dock --center 21.63 63.32 35.83 --out hasil/kantong1
+ladock-cli dock --center 19.80 62.89 55.83 --out hasil/kantong2
+```
+
+Karena `receptor`, `ligand`, dan `out` bisa berasal dari berkas konfigurasi,
+ketiganya tidak lagi wajib di command line — tetapi tetap diperiksa setelah
+konfigurasi digabungkan, dan pesan galatnya menyebut kedua cara mengisinya.
+
+Berkas lain dipakai dengan `--config`. Kunci yang tidak dikenali dilaporkan
+lalu diabaikan, bukan didiamkan:
+
+```bash
+ladock-cli dock --config protokol/skrining_ketat.txt --out hasil/ketat
+```
+
+Kunci yang dikenali: `receptor`, `ligand`, `out`, `center`, `size`, `scoring`,
+`mode`, `native_ligand`, `native_chain`, `native_resseq`, `flex_residue`,
+`flex_distance`, `simultaneous`, `arrangement`, `max_groups`, `spacing`,
+`exhaustiveness`, `ad4_exhaustiveness`, `n_poses`, `energy_range`, `cpu`,
+`jobs`, `grid_cache`, `seed`, `ga_pop_size`, `cluster_rmsd`, `timeout`,
+`vina`, `autogrid4`, `autodock4`, `autodock_gpu`, `mgltools`, `adfrsuite`,
+`pythonsh`, `wsl_distro`.
+
+## Mode fleksibel
+
+Residu fleksibel dipilih dengan `--flex-residue chain:RESNAME:resseq` yang
+bisa diulang, atau otomatis dalam radius `--flex-distance` dari **pusat kotak**.
+
+Dua hal yang perlu diketahui tentang radius otomatis:
+
+- Radiusnya diukur dari satu titik pusat kotak, dan pusat kotak menurut
+  definisinya berada di ruang kosong rongga. Nilai kecil karena itu tidak
+  menghasilkan apa-apa: pada situs ikatan yang normal, 3,0 Å memberi nol
+  residu sedangkan 6,0 Å memberi belasan.
+- Alanin dan glisin disaring otomatis. Keduanya tidak punya rantai samping yang
+  bisa diputar, `prepare_flexreceptor4.py` memang sudah membuangnya diam-diam,
+  tetapi `agfr` menolak seluruh job bila menemukannya — sehingga tanpa
+  penyaringan ini Vina berjalan dan ADFR mati pada daftar residu yang sama.
+  Yang dibuang dicetak ke layar.
+
+Untuk situs ikatan di **antarmuka dua rantai**, daftar residu boleh memuat
+rantai mana pun; keduanya diteruskan utuh ke `prepare_flexreceptor4.py`. Residu
+yang diminta tetapi tidak muncul di berkas flex dilaporkan sebagai peringatan,
+karena split yang tidak lengkap tetap menghasilkan docking dan tetap menulis
+energi yang tampak masuk akal.
+
 ## MLSD (Multiple Ligand Simultaneous Docking)
 
 MLSD mendokking **beberapa ligan berbeda sekaligus di dalam satu pocket**

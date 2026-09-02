@@ -9,6 +9,7 @@ the failure so a future change that reintroduces it fails loudly.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
@@ -714,6 +715,115 @@ class GridPointsTest(unittest.TestCase):
             n = agent._grid_points(size, spacing)
             self.assertEqual(n % 2, 0, f"{size}/{spacing} -> {n}")
             self.assertGreaterEqual(n, 2)
+
+
+class FlexResidueSpecTest(unittest.TestCase):
+    """prepare_flexreceptor4.py splits -s on commas and parses each piece as a
+    full molname:chain:residues triple. Emitting the molecule name only once,
+    ahead of the first group, made every residue outside the first chain vanish
+    without a message -- and for a binding site on a subunit interface that is
+    most of the pocket."""
+
+    def test_molecule_name_repeats_on_every_chain(self):
+        spec = agent._flexres_spec(
+            "/tmp/receptor.pdbqt",
+            ["A:MET:49", "B:ASN:29", "B:THR:72"])
+        self.assertEqual(spec, "receptor:A:MET49,receptor:B:ASN29_THR72")
+
+    def test_every_chain_group_is_addressable(self):
+        """Each comma-separated piece must stand on its own."""
+        spec = agent._flexres_spec("/tmp/rec.pdbqt", ["A:MET:49", "B:ASN:29"])
+        for piece in spec.split(","):
+            self.assertEqual(len(piece.split(":")), 3, piece)
+            self.assertEqual(piece.split(":")[0], "rec")
+
+    def test_single_chain_spec_unchanged(self):
+        spec = agent._flexres_spec("/tmp/receptor.pdbqt", ["A:MET:49", "A:ASN:29"])
+        self.assertEqual(spec, "receptor:A:MET49_ASN29")
+
+    def test_malformed_entries_are_skipped(self):
+        spec = agent._flexres_spec("/tmp/receptor.pdbqt", ["A:MET:49", "garbage"])
+        self.assertEqual(spec, "receptor:A:MET49")
+
+
+class NonRotatableSideChainTest(unittest.TestCase):
+    """agfr refuses the entire job when handed an alanine, while
+    prepare_flexreceptor4.py drops it silently -- so an auto-detected residue
+    set containing one killed ADFR and left the other four engines running."""
+
+    def test_alanine_and_glycine_are_dropped(self):
+        keep, dropped = agent.drop_non_rotatable(
+            ["A:ALA:37", "A:MET:49", "B:GLY:71", "B:ASN:29"])
+        self.assertEqual(keep, ["A:MET:49", "B:ASN:29"])
+        self.assertEqual(dropped, ["A:ALA:37", "B:GLY:71"])
+
+    def test_proline_is_kept(self):
+        """AGFR supports proline; dropping it would discard real flexibility."""
+        keep, dropped = agent.drop_non_rotatable(["A:PRO:47"])
+        self.assertEqual(keep, ["A:PRO:47"])
+        self.assertEqual(dropped, [])
+
+    def test_case_insensitive(self):
+        keep, dropped = agent.drop_non_rotatable(["A:ala:37"])
+        self.assertEqual(keep, [])
+        self.assertEqual(dropped, ["A:ala:37"])
+
+
+class ConfigFileTest(unittest.TestCase):
+    """ladock_config.txt uses the same key: value shape as LAGMX's
+    gmx_config.txt, and must never override a flag the user actually typed."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_comments_and_blank_lines_ignored(self):
+        path = _write(self.tmp, "cfg.txt",
+                      "# a comment\n\nsize: 16 16 16\n"
+                      "   # indented comment\nexhaustiveness: 32\n")
+        self.assertEqual(agent.read_config_file(path),
+                         {"size": "16 16 16", "exhaustiveness": "32"})
+
+    def test_value_may_contain_colons(self):
+        path = _write(self.tmp, "cfg.txt", "receptor: /home/a:b/rec.pdb\n")
+        self.assertEqual(agent.read_config_file(path)["receptor"], "/home/a:b/rec.pdb")
+
+    def test_coercion(self):
+        self.assertEqual(agent._coerce("floats", "16 16 16"), [16.0, 16.0, 16.0])
+        self.assertEqual(agent._coerce("floats", "21.6, 63.3, 35.8"), [21.6, 63.3, 35.8])
+        self.assertEqual(agent._coerce("list", "vina vinardo ad4"),
+                         ["vina", "vinardo", "ad4"])
+        self.assertEqual(agent._coerce("list", "rigid,flexible"), ["rigid", "flexible"])
+        self.assertEqual(agent._coerce("int", "32"), 32)
+        self.assertEqual(agent._coerce("float", "6.0"), 6.0)
+
+    def test_command_line_wins_over_config(self):
+        path = _write(self.tmp, "cfg.txt", "exhaustiveness: 32\nsize: 16 16 16\n")
+        args = argparse.Namespace(config=path, exhaustiveness=8,
+                                  size=(20.0, 20.0, 20.0))
+        parser = argparse.ArgumentParser()
+        agent.apply_config(args, ["--exhaustiveness", "8"], parser)
+        self.assertEqual(args.exhaustiveness, 8)          # typed, kept
+        self.assertEqual(args.size, [16.0, 16.0, 16.0])   # not typed, filled in
+
+    def test_equals_form_counts_as_typed(self):
+        path = _write(self.tmp, "cfg.txt", "exhaustiveness: 32\n")
+        args = argparse.Namespace(config=path, exhaustiveness=8)
+        agent.apply_config(args, ["--exhaustiveness=8"], argparse.ArgumentParser())
+        self.assertEqual(args.exhaustiveness, 8)
+
+    def test_missing_default_config_is_not_an_error(self):
+        args = argparse.Namespace(config="", exhaustiveness=8)
+        cwd = os.getcwd()
+        os.chdir(self.tmp)
+        try:
+            self.assertEqual(agent.apply_config(args, [], argparse.ArgumentParser()), "")
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(args.exhaustiveness, 8)
 
 
 if __name__ == "__main__":

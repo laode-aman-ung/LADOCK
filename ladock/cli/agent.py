@@ -1178,6 +1178,28 @@ def extract_selected_components(pdb_path: str, out_pdb: str, components: list[di
     return out_pdb
 
 
+# Residues with no rotatable side chain. Making them "flexible" is a no-op for
+# Vina and AD4 -- prepare_flexreceptor4.py drops them silently -- but AGFR
+# refuses the whole job over them:
+#
+#   residue ALA cannot be made flexible. Only residues of type: CYS, ASP, SER,
+#   GLN, LYS, ILE, PRO, THR, PHE, ASN, MET, HIS, LEU, ARG, TRP, VAL, GLU, TYR
+#
+# So an auto-detected set that happens to include an alanine kills ADFR while
+# the other four engines shrug. They are filtered out at the source instead.
+NON_ROTATABLE_SIDE_CHAINS = frozenset({"ALA", "GLY"})
+
+
+def drop_non_rotatable(flex_residues: list[str]) -> tuple[list[str], list[str]]:
+    """Split a flexible-residue list into usable and non-rotatable halves."""
+    keep, dropped = [], []
+    for res in flex_residues:
+        parts = res.split(":")
+        resname = parts[1].upper() if len(parts) == 3 else ""
+        (dropped if resname in NON_ROTATABLE_SIDE_CHAINS else keep).append(res)
+    return keep, dropped
+
+
 def find_flex_residues(pdb_path: str, cx: float, cy: float, cz: float,
                        cutoff: float) -> list[str]:
     seen: set[tuple[str, str, str]] = set()
@@ -1410,6 +1432,15 @@ def validate_rules(cfg: DockConfig, tools: ToolConfig) -> None:
         )
         if not cfg.flex_residues:
             raise RuntimeError("No flexible residues were found. Use --flex-residue or increase --flex-distance.")
+    if "flexible" in cfg.modes and cfg.flex_residues:
+        cfg.flex_residues, dropped = drop_non_rotatable(cfg.flex_residues)
+        if dropped:
+            print(f"  Residu tanpa rantai samping yang bisa diputar dilewati: "
+                  f"{', '.join(dropped)}")
+        if not cfg.flex_residues:
+            raise RuntimeError(
+                "Every requested flexible residue lacks a rotatable side chain "
+                f"({', '.join(dropped)}). Widen --flex-distance or pick other residues.")
     if ADFR_SCORING & set(cfg.scoring):
         missing = [f"{label}: {path}" for label, path in
                    (("agfr", tools.agfr_path), ("adfr", tools.adfr_path))
@@ -1465,9 +1496,16 @@ def prepare_receptor_pdbqt(receptor: str, out_pdbqt: str, tools: ToolConfig) -> 
 
 def _flexres_spec(rec_pdbqt: str, flex_residues: list[str]) -> str:
     """Build the -s argument prepare_flexreceptor4.py expects:
-    ``<molname>:<chain>:<RESnameRESnum>_...`` (comma-separated per chain).
-    The molecule name is the receptor PDBQT stem; residues arrive as
-    ``chain:resname:resseq`` and become e.g. ``receptor:A:ALA55_ASN51_MET98``."""
+    ``<molname>:<chain>:<RESnameRESnum>_...``, repeated per chain and joined by
+    commas. The molecule name is the receptor PDBQT stem; residues arrive as
+    ``chain:resname:resseq`` and become e.g. ``receptor:A:ALA55_ASN51_MET98``.
+
+    The molecule name has to be repeated on every chain group.
+    prepare_flexreceptor4.py splits ``-s`` on commas and parses each piece as a
+    complete molname:chain:residues triple, so emitting the name only once ahead
+    of the first group leaves later groups looking like ``B:ASN29_THR72``, which
+    matches nothing and is dropped without a message. For a binding site on a
+    subunit interface that silently discards most of the pocket."""
     stem = Path(rec_pdbqt).stem
     by_chain: dict[str, list[str]] = {}
     for res in flex_residues:
@@ -1476,8 +1514,7 @@ def _flexres_spec(rec_pdbqt: str, flex_residues: list[str]) -> str:
             continue
         chain, resname, resseq = parts
         by_chain.setdefault(chain, []).append(f"{resname}{resseq}")
-    chain_specs = ",".join(f"{chain}:{'_'.join(res)}" for chain, res in by_chain.items())
-    return f"{stem}:{chain_specs}"
+    return ",".join(f"{stem}:{chain}:{'_'.join(res)}" for chain, res in by_chain.items())
 
 
 def split_flexible_receptor(rec_pdbqt: str, flex_residues: list[str],
@@ -1499,7 +1536,49 @@ def split_flexible_receptor(rec_pdbqt: str, flex_residues: list[str],
         raise RuntimeError(
             "Flexible receptor split produced no flexible residues "
             f"(spec: {flex_spec}). Check --flex-residue / --flex-distance.")
+    # A non-empty file is not proof that every requested residue made it in.
+    # Report the ones that did not, because a partial split still docks and
+    # still writes plausible energies.
+    _warn_dropped_flexres(flex, flex_residues)
     return rigid, flex
+
+
+# Side chains prepare_flexreceptor4.py legitimately refuses to make flexible:
+# glycine has none, alanine's is a single methyl, and proline's is locked into
+# the backbone ring. Leaving them out of the check keeps it from crying wolf.
+RIGID_SIDE_CHAINS = frozenset({"GLY", "ALA", "PRO"})
+
+
+def _warn_dropped_flexres(flex_pdbqt: str, requested: list[str]) -> None:
+    """Warn when a requested rotatable residue is missing from the flex file."""
+    try:
+        found = set()
+        with open(flex_pdbqt, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if not line.startswith("BEGIN_RES"):
+                    continue
+                # "BEGIN_RES MET A  49", but the chain column is blank for a
+                # single-chain receptor, which collapses the line to three fields.
+                parts = line.split()
+                if len(parts) >= 4:
+                    found.add((parts[1], parts[2], parts[3]))
+                elif len(parts) == 3:
+                    found.add((parts[1], "", parts[2]))
+    except OSError:
+        return
+    missing = []
+    for res in requested:
+        parts = res.split(":")
+        if len(parts) != 3:
+            continue
+        chain, resname, resseq = parts
+        if resname.upper() in RIGID_SIDE_CHAINS:
+            continue
+        if (resname, chain, resseq) not in found:
+            missing.append(f"{resname}{resseq}:{chain}")
+    if missing:
+        print(f"  ! flexible receptor is missing {len(missing)} requested "
+              f"residue(s): {', '.join(missing)}")
 
 
 def ligand_atom_types(pdbqt_path: str) -> frozenset[str]:
@@ -3557,9 +3636,14 @@ def build_parser() -> argparse.ArgumentParser:
     comp.add_argument("pdb")
 
     dock_p = sub.add_parser("dock", help="Run rule-based docking")
-    dock_p.add_argument("--receptor", required=True, help="Receptor PDB/PDBQT")
-    dock_p.add_argument("--ligand", required=True, action="append", help="Ligand file; repeat for batch docking")
-    dock_p.add_argument("--out", required=True, help="Output directory")
+    # Not required at the parser level: ladock_config.txt may supply them. The
+    # check that they ended up set happens after the config is merged in, so
+    # that the error can mention both ways of providing them.
+    dock_p.add_argument("--receptor", default="", help="Receptor PDB/PDBQT")
+    dock_p.add_argument("--ligand", action="append", help="Ligand file; repeat for batch docking")
+    dock_p.add_argument("--out", default="", help="Output directory")
+    dock_p.add_argument("--config", default="", metavar="FILE",
+                        help="Config file with defaults (default: ./ladock_config.txt)")
     dock_p.add_argument("--center", nargs=3, type=float, metavar=("X", "Y", "Z"))
     dock_p.add_argument("--size", nargs=3, type=float, default=(20.0, 20.0, 20.0),
                         metavar=("SX", "SY", "SZ"))
@@ -3618,6 +3702,105 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+DEFAULT_CONFIG_NAME = "ladock_config.txt"
+
+# dest -> how to turn the config string into the value argparse would produce.
+# Anything not listed here is not settable from the config file.
+CONFIG_KEYS: dict[str, str] = {
+    "receptor": "str", "out": "str", "ligand": "list",
+    "center": "floats", "size": "floats",
+    "scoring": "list", "mode": "list",
+    "native_ligand": "str", "native_chain": "str", "native_resseq": "str",
+    "flex_residue": "list", "flex_distance": "float",
+    "simultaneous": "int", "arrangement": "str", "max_groups": "int",
+    "spacing": "float", "exhaustiveness": "int", "ad4_exhaustiveness": "int",
+    "n_poses": "int", "energy_range": "int", "cpu": "int", "jobs": "int",
+    "grid_cache": "str", "seed": "int", "ga_pop_size": "int",
+    "cluster_rmsd": "float", "timeout": "float",
+    "vina": "str", "autogrid4": "str", "autodock4": "str", "autodock_gpu": "str",
+    "mgltools": "str", "adfrsuite": "str", "pythonsh": "str",
+    "wsl_distro": "str",
+}
+
+
+def read_config_file(path: str) -> dict[str, str]:
+    """Parse a ``key: value`` config file, ignoring blank lines and comments.
+
+    Deliberately the same shape as LAGMX's gmx_config.txt: one key per line,
+    a colon and a space, and ``#`` comments that explain why a value is what it
+    is. Two tools in the same workflow should not need two config dialects.
+    """
+    values: dict[str, str] = {}
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            key, sep, value = line.partition(":")
+            if not sep:
+                continue
+            key, value = key.strip(), value.strip()
+            if key and value:
+                values[key] = value
+    return values
+
+
+def _coerce(kind: str, value: str):
+    if kind == "int":
+        return int(value)
+    if kind == "float":
+        return float(value)
+    if kind == "floats":
+        parts = value.replace(",", " ").split()
+        return [float(p) for p in parts]
+    if kind == "list":
+        return [p for p in (q.strip() for q in value.replace(",", " ").split()) if p]
+    return value
+
+
+def apply_config(args: argparse.Namespace, argv: list[str], parser) -> str:
+    """Merge config file values into ``args`` without overriding the CLI.
+
+    A flag typed on the command line always wins: the config only fills in what
+    the user left out. Presence is tested against argv rather than against the
+    argparse default, because "the user asked for the default value" and "the
+    user said nothing" have to stay distinguishable.
+    """
+    path = getattr(args, "config", "") or os.path.join(os.getcwd(), DEFAULT_CONFIG_NAME)
+    if not os.path.isfile(path):
+        if getattr(args, "config", ""):
+            parser.error(f"config file not found: {path}")
+        return ""
+
+    try:
+        raw = read_config_file(path)
+    except OSError as exc:
+        parser.error(f"cannot read config file {path}: {exc}")
+
+    given = {a.split("=", 1)[0] for a in argv if a.startswith("--")}
+    applied, unknown = [], []
+    for key, value in raw.items():
+        dest = key.replace("-", "_")
+        kind = CONFIG_KEYS.get(dest)
+        if kind is None:
+            unknown.append(key)
+            continue
+        if f"--{dest.replace('_', '-')}" in given:
+            continue                      # typed on the command line, leave it
+        try:
+            setattr(args, dest, _coerce(kind, value))
+        except ValueError:
+            parser.error(f"config file {path}: '{key}' is not a valid {kind} ({value!r})")
+        applied.append(key)
+
+    if unknown:
+        print(f"  ! config keys ignored (not docking options): {', '.join(sorted(unknown))}")
+    if applied:
+        print(f"  Config {path}: {len(applied)} nilai dipakai "
+              f"({', '.join(sorted(applied))})")
+    return path
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     # Internal dispatch (frozen build): run a bundled Meeko CLI module in-process,
     # since a PyInstaller exe cannot do `-m module`.
@@ -3644,6 +3827,14 @@ def main(argv: Iterable[str] | None = None) -> int:
     if not argv:
         return run_wizard()
     args = parser.parse_args(argv)
+    if getattr(args, "command", "") == "dock":
+        apply_config(args, argv, parser)
+        missing = [name for name in ("receptor", "ligand", "out")
+                   if not getattr(args, name, None)]
+        if missing:
+            parser.error(
+                "missing " + ", ".join(f"--{m}" for m in missing)
+                + f" — pass them on the command line or set them in {DEFAULT_CONFIG_NAME}")
     if getattr(args, "verbose", False):
         set_verbose(True)
     if args.command != "wizard":          # wizard shows the notice in its banner
