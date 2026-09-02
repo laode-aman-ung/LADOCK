@@ -98,8 +98,17 @@ jobs:
       - name: Stage + freeze
         run: python packaging/build_release.py mac
       - name: Build .dmg
-        run: bash packaging/macos/build_dmg.sh "build/dist-mac/LADOCK.app" || \
-             bash packaging/macos/build_dmg.sh "build/dist-mac/LADOCK"
+        # Block scalar, not a folded one: YAML joins plain multi-line scalars
+        # with a space, which turned the trailing "\" into an escaped space and
+        # made the shell look for a command named " bash" (exit 127).
+        run: |
+          if [ -d build/dist-mac/LADOCK.app ]; then
+            bash packaging/macos/build_dmg.sh build/dist-mac/LADOCK.app
+          else
+            echo "No .app bundle found — PyInstaller BUNDLE step did not run." >&2
+            ls -la build/dist-mac/ >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: ladock-mac

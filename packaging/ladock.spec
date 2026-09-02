@@ -13,6 +13,8 @@ NOTE: freezing PySide6-WebEngine + RDKit + Meeko is finicky and typically needs
 a round or two of iteration on the real runner (missing hidden imports / data).
 """
 import os
+import re
+import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
@@ -22,6 +24,14 @@ VERSION = os.environ.get("LADOCK_VERSION", "windows")
 # Bundle resources at the app root, which is what ladock.paths resolves to when
 # frozen: bin_root() -> _MEIPASS/bin, desktop_resource_root() -> _MEIPASS.
 _DESKTOP_PKG = STAGE / "ladock" / "desktop"
+
+# Same single source of truth as the packaging scripts: the version shown in
+# macOS "Get Info" must match what pip reports.
+_version = re.search(
+    r'^__version__ = "([^"]+)"',
+    (_DESKTOP_PKG.parent / "__init__.py").read_text(),
+    re.M,
+).group(1)
 datas = [
     (str(STAGE / "bin"), "bin"),
     (str(_DESKTOP_PKG / "config"), "config"),
@@ -86,3 +96,20 @@ coll = COLLECT(
     exe, a.binaries, a.zipfiles, a.datas,
     strip=False, upx=False, name="LADOCK",
 )
+
+# macOS needs a real .app: COLLECT alone leaves a plain directory, which
+# cannot be dragged into /Applications, has no icon and does not launch on
+# double-click. BUNDLE wraps the same COLLECT output, so nothing else changes.
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="LADOCK.app",
+        bundle_identifier="id.ladeep.ladock",
+        info_plist={
+            "CFBundleName": "LADOCK",
+            "CFBundleDisplayName": "LADOCK Desktop",
+            "CFBundleShortVersionString": _version,
+            "CFBundleVersion": _version,
+            "NSHighResolutionCapable": True,
+        },
+    )
