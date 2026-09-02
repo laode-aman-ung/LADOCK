@@ -41,6 +41,21 @@ class MlsdCombinatoricsTest(unittest.TestCase):
                     sum(1 for _ in gen(range(n), k)),
                     f"n={n} k={k} {arrangement}")
 
+    def test_mlsd_is_capped_at_a_pair(self):
+        """LADOCK's MLSD is defined for two ligands sharing a pocket, not N."""
+        self.assertEqual(agent.MAX_SIMULTANEOUS, 2)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tools = agent.ToolConfig(vina_path="vina", ag4_path="", ad4_path="",
+                                 autodockgpu="", pythonsh="", prepare_receptor="",
+                                 prepare_ligand="", prepare_gpf="", prepare_dpf="",
+                                 prepare_flexreceptor="")
+        cfg = agent.DockConfig(receptor="r", ligands=["l"], out_dir=tmp.name,
+                               center=(0.0, 0.0, 0.0), scoring=["vina"], simultaneous=3)
+        with self.assertRaises(RuntimeError) as ctx:
+            agent.validate_rules(cfg, tools)
+        self.assertIn("at most 2", str(ctx.exception))
+
     def test_k_greater_than_n_is_zero(self):
         self.assertEqual(agent.mlsd_group_count(2, 3, "combination"), 0)
         self.assertEqual(agent.mlsd_group_count(0, 1, "permutation"), 0)

@@ -54,6 +54,10 @@ AD4_SCORING = {"ad4", "ad4gpu"}
 # shipped in ADFRsuite rather than with the bundled binaries.
 ADFR_SCORING = {"adfr"}
 ALL_SCORING = VINA_SCORING | AD4_SCORING | ADFR_SCORING
+
+# MLSD docks a PAIR of different ligands into one pocket. Two is the ceiling:
+# it is what the method is defined for, and what LADOCK validates against.
+MAX_SIMULTANEOUS = 2
 LIGAND_SUFFIXES = {
     ".pdbqt", ".pdb", ".sdf", ".mol", ".mol2", ".smi", ".smiles", ".txt",
     ".csv", ".tsv", ".xlsx", ".xls",
@@ -1364,6 +1368,13 @@ def validate_rules(cfg: DockConfig, tools: ToolConfig) -> None:
         raise RuntimeError(f"Unknown scoring function(s): {', '.join(sorted(unknown))}")
     if cfg.simultaneous < 1:
         raise RuntimeError("--simultaneous must be >= 1.")
+    if cfg.simultaneous > MAX_SIMULTANEOUS:
+        # LADOCK's MLSD is defined for ligand *pairs*: two different molecules
+        # sharing one pocket. Three or more is neither validated nor meaningful
+        # here, and the group count explodes, so it is refused outright.
+        raise RuntimeError(
+            f"MLSD supports at most {MAX_SIMULTANEOUS} ligands at a time "
+            f"(--simultaneous {cfg.simultaneous} was requested).")
     if cfg.arrangement not in ("combination", "permutation"):
         raise RuntimeError("--arrangement must be 'combination' or 'permutation'.")
     if cfg.simultaneous > 1:
@@ -3112,16 +3123,13 @@ def _wizard_session():
             return
         use_mlsd = _prompt_choice(
             "Multiple Ligand Simultaneous Docking (MLSD)? "
-            "Dock beberapa ligan berbeda sekaligus dalam satu pocket (khusus Vina/Vinardo).",
+            "Dock SEPASANG ligan berbeda sekaligus dalam satu pocket (khusus Vina/Vinardo).",
             [("Tidak, dock satu per satu", False), ("Ya, aktifkan MLSD", True)],
         )
         if not use_mlsd:
             return
-        max_n = min(n_lig, 5)
-        state["simultaneous"] = _prompt_choice(
-            f"Berapa ligan didokking bersama? (tersedia {n_lig} ligan)",
-            [(f"{k} ligan sekaligus", k) for k in range(2, max_n + 1)],
-        )
+        # MLSD is a pair method; there is nothing to choose, so do not ask.
+        state["simultaneous"] = MAX_SIMULTANEOUS
         while True:
             state["arrangement"] = _prompt_choice(
                 "Susunan kombinasi ligan?",
@@ -3156,10 +3164,10 @@ def _wizard_session():
                 state["arrangement"] = "combination"
                 return
             if action == "fewer":
-                state["simultaneous"] = _prompt_choice(
-                    f"Berapa ligan didokking bersama? (tersedia {n_lig} ligan)",
-                    [(f"{k} ligan sekaligus", k) for k in range(2, max_n + 1)],
-                )
+                # Nothing smaller than a pair exists, so this is really "turn it off".
+                state["simultaneous"] = 1
+                state["arrangement"] = "combination"
+                return
 
     def select_preset():
         state["preset"] = _prompt_choice(
@@ -3563,8 +3571,9 @@ def build_parser() -> argparse.ArgumentParser:
     dock_p.add_argument("--flex-residue", action="append", default=[],
                         help="Flexible residue spec chain:resname:resseq; repeatable")
     dock_p.add_argument("--flex-distance", type=float, default=3.0)
-    dock_p.add_argument("--simultaneous", type=int, default=1,
-                        help="MLSD: dock N different ligands together in one pocket (Vina/Vinardo only)")
+    dock_p.add_argument("--simultaneous", type=int, default=1, choices=[1, 2],
+                        help="MLSD: dock a PAIR of different ligands together in one "
+                             "pocket (Vina/Vinardo only). 1 = normal one-at-a-time.")
     dock_p.add_argument("--arrangement", default="combination",
                         choices=["combination", "permutation"],
                         help="MLSD grouping of the ligand library (default: combination)")
