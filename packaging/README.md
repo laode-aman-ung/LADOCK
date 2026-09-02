@@ -81,11 +81,11 @@ Downloads are served from **your own host / cloud** (domain `ladock.ladeep.id`),
 not GitHub. The website links (`website/docs.html` → download cards) point to:
 
 ```
-https://ladock.ladeep.id/downloads/LADOCK-2.0.0-windows-setup.exe
-https://ladock.ladeep.id/downloads/LADOCK-2.0.0-windows-hybrid-setup.exe
-https://ladock.ladeep.id/downloads/ladock-desktop_2.0.0_linux_amd64.deb
-https://ladock.ladeep.id/downloads/LADOCK-2.0.0-linux-x86_64.AppImage
-https://ladock.ladeep.id/downloads/LADOCK-2.0.0-mac.dmg
+https://ladock.ladeep.id/downloads/LADOCK-0.3.0-windows-setup.exe
+https://ladock.ladeep.id/downloads/LADOCK-0.3.0-windows-hybrid-setup.exe
+https://ladock.ladeep.id/downloads/ladock-desktop_0.3.0_linux_amd64.deb
+https://ladock.ladeep.id/downloads/LADOCK-0.3.0-linux-x86_64.AppImage
+https://ladock.ladeep.id/downloads/LADOCK-0.3.0-mac.dmg
 ```
 
 So serve the built installers at `https://ladock.ladeep.id/downloads/` — either as
@@ -102,7 +102,7 @@ to populate it:
    absolute URLs if the files live on a different domain/CDN).
 
 Keep the installer filenames in sync with the download links (versioned as
-`2.0.0`); bump both when you release a new version.
+`0.3.0`); bump both when you release a new version.
 
 ## Status / caveats
 

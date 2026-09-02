@@ -40,7 +40,7 @@ yang boleh merilis. Namanya harus `pypi`, sesuai isian di PyPI dan di
 
    ```bash
    git tag v2.0.1 && git push origin v2.0.1
-   gh release create v2.0.1 --title "LADOCK 2.0.1" --notes "..."
+   gh release create v0.3.1 --title "LADOCK 0.3.1" --notes "..."
    ```
 
 3. Workflow membangun sdist + wheel, menjalankan `twine check`, memasang wheel
