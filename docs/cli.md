@@ -236,6 +236,53 @@ yang diminta tetapi tidak muncul di berkas flex dilaporkan sebagai peringatan,
 karena split yang tidak lengkap tetap menghasilkan docking dan tetap menulis
 energi yang tampak masuk akal.
 
+## Ligan makrosiklik dan AutoGrid4
+
+Meeko membuka cincin makrosiklik dan menyambungnya kembali dengan pseudo-atom
+bertipe `CG0`/`G0`. Vina dan Vinardo menilainya tanpa masalah; **AutoGrid4
+menolak tipe itu mentah-mentah**:
+
+```
+autogrid4: ERROR:  unknown ligand atom type CG0
+add parameters for it to the parameter library first!
+```
+
+Akibatnya, pada screening dengan `ad4` atau `ad4gpu`, setiap ligan makrosiklik
+kehilangan skornya. Cincin berukuran ≥ 8 atom sudah dihitung makrosiklik, jadi
+ini menyentuh banyak seskuiterpen dan diterpen — pada satu pustaka bahan alam
+359 senyawa, 24 di antaranya terdampak.
+
+```bash
+ladock-cli dock ... --scoring ad4gpu --rigid-macrocycles
+```
+
+atau `rigid_macrocycles: yes` di `ladock_config.txt`.
+
+**Ini bukan perbaikan tanpa biaya.** Dengan cincin dibuat rigid, konformasi
+cincin tidak lagi disampling dan hasilnya bergantung pada konformer masukan.
+Pada uji α-humulen, skor Vina berpindah dari −4,10 (cincin fleksibel) ke −6,11
+(cincin rigid). Bila Anda memakai opsi ini, pakailah untuk **seluruh** pustaka,
+bukan sebagian, supaya ligan tetap sebanding satu sama lain.
+
+## Kegagalan sebagian pada screening
+
+Satu ligan yang gagal pada satu engine **tidak** menghentikan batch. Sebelumnya
+begitu: satu ligan makrosiklik membuat run 359 ligan mati di 8%, padahal Vina
+dan Vinardo sudah menilai ligan itu dengan baik.
+
+Sekarang kegagalan dicatat per ligan per engine, hasil engine lain untuk ligan
+yang sama tetap disimpan, dan ringkasannya dicetak sebelum tabel hasil:
+
+```
+  1 kegagalan pada 1 ligan (ad4/ad4gpu: 1)
+       1x  autogrid4: ERROR:  unknown ligand atom type CG0
+    Rincian lengkap di run.meta.json (kunci 'failures').
+```
+
+Rincian per ligan masuk ke `run.meta.json` pada kunci `failures`. Kegagalan
+tidak pernah didiamkan — kalau tabel hasil punya lubang, ringkasan itu yang
+memberi tahu di mana dan mengapa.
+
 ## MLSD (Multiple Ligand Simultaneous Docking)
 
 MLSD mendokking **beberapa ligan berbeda sekaligus di dalam satu pocket**

@@ -485,6 +485,19 @@ def _run_capture(cmd: list[str], tag: str, log_fn=log, cwd: str | None = None,
     return result.returncode == 0
 
 
+# Meeko opens macrocycles by default and glues the broken bond back with
+# pseudo-atoms typed CG0/G0. Vina and Vinardo score those fine; AutoGrid4 does
+# not know the types and refuses the ligand outright, so an AD4 or AD4-GPU
+# screen loses every macrocyclic compound. Keeping the rings rigid avoids the
+# glue atoms entirely, at the cost of not sampling ring conformations.
+_RIGID_MACROCYCLES = False
+
+
+def set_rigid_macrocycles(value: bool) -> None:
+    global _RIGID_MACROCYCLES
+    _RIGID_MACROCYCLES = bool(value)
+
+
 def _meeko_cmd(module: str, args: list[str]) -> list[str]:
     """Command to run a Meeko CLI module. A frozen (PyInstaller) exe cannot do
     `sys.executable -m module`, so re-invoke the exe with an internal --_meeko
@@ -566,7 +579,10 @@ def _file_to_pdbqt_meeko(in_path: str, out_path: str, log_fn=log) -> bool:
         sdf = os.path.join(tmp_dir, "ligand.sdf")
         if not _rdkit_write_sdf(in_path, sdf, log_fn):
             return False
-        cmd = _meeko_cmd("meeko.cli.mk_prepare_ligand", ["-i", sdf, "-o", out_path])
+        meeko_args = ["-i", sdf, "-o", out_path]
+        if _RIGID_MACROCYCLES:
+            meeko_args.append("--rigid_macrocycles")
+        cmd = _meeko_cmd("meeko.cli.mk_prepare_ligand", meeko_args)
         _run_capture(cmd, "mk_prepare_ligand", log_fn)
         return os.path.isfile(out_path)
     finally:
@@ -2141,6 +2157,9 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
     out_dir.mkdir(parents=True, exist_ok=True)
     tmp_dir = tempfile.mkdtemp(prefix="ladock_agent_", dir=str(out_dir))
     results: list[dict] = []
+    # Per-ligand, per-engine failures. A screen keeps going through them, but
+    # they are never silent: terminal, run.meta.json, and a non-zero exit.
+    engine_failures: list[dict] = []
     meta = {"started_at": _dt.datetime.now().isoformat(), "tmp_dir": tmp_dir, "outputs": []}
 
     try:
@@ -2327,6 +2346,32 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
 
             def _dock_one(mol_name: str, lig_pdbqt: str, label: str) -> list[dict]:
                 rows: list[dict] = []
+
+                def attempt(scoring_name: str, mode: str, fn):
+                    """Run one engine for this ligand, or record why it could not.
+
+                    A virtual screen is a batch, and before this a single engine
+                    failing on a single ligand raised straight through the thread
+                    pool and killed the whole run. The case that exposed it: 24 of
+                    359 natural products are macrocyclic, Meeko gives their ring
+                    bonds CG0/G0 glue atom types, and AutoGrid4 rejects those types
+                    outright -- so an overnight screen died at 8% even though Vina
+                    and Vinardo had scored those same ligands without complaint.
+
+                    Failures are collected rather than swallowed: they go to the
+                    terminal, to run.meta.json, and make the run exit non-zero.
+                    """
+                    try:
+                        return fn()
+                    except Exception as exc:                      # noqa: BLE001
+                        engine_failures.append({
+                            "ligand": mol_name, "mode": mode, "scoring": scoring_name,
+                            "error": _error_line(exc),
+                        })
+                        reporter.emit(mol_name, scoring_name, mode, None,
+                                      pct=reporter.tick(total_units))
+                        return None
+
                 for mode in cfg.modes:
                     use_flex = mode == "flexible"
                     mode_dir = out_dir / mode / label
@@ -2337,7 +2382,10 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
                     for sf in per_ligand_vina:
                         sf_dir = mode_dir / sf
                         sf_dir.mkdir(exist_ok=True)
-                        out = run_vina(cfg, tools, str(sf_dir), receptor_for_run, lig_pdbqt, sf, flex_for_run)
+                        out = attempt(sf, mode, lambda sf=sf, d=sf_dir: run_vina(
+                            cfg, tools, str(d), receptor_for_run, lig_pdbqt, sf, flex_for_run))
+                        if out is None:
+                            continue
                         row = {"ligand": mol_name, "mode": mode, "scoring": sf, "out_path": out,
                                **parse_result(out, sf)}
                         rows.append(row)
@@ -2351,31 +2399,43 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
                         # The maps themselves come from the cache — they depend on
                         # the ligand's atom types, not on the ligand.
                         grid_dir = mode_dir / "ad4"
-                        fld, gpf = grid_cache.materialise(
-                            mode, grid_dir, receptor_for_run, lig_pdbqt, flex_for_run)
-                        if "ad4" in cfg.scoring:
-                            out = run_ad4(cfg, tools, str(grid_dir), receptor_for_run, lig_pdbqt, gpf, flex_for_run)
-                            row = {"ligand": mol_name, "mode": mode, "scoring": "ad4", "out_path": out,
-                                   **parse_result(out, "ad4")}
-                            rows.append(row)
-                            reporter.emit(mol_name, "ad4", mode, row.get("energy"),
-                                          pct=reporter.tick(total_units))
-                        if "ad4gpu" in cfg.scoring:
-                            out = run_adgpu(cfg, tools, str(grid_dir), lig_pdbqt, fld, flex_for_run)
-                            row = {"ligand": mol_name, "mode": mode, "scoring": "ad4gpu", "out_path": out,
-                                   **parse_result(out, "ad4gpu")}
-                            rows.append(row)
-                            reporter.emit(mol_name, "ad4gpu", mode, row.get("energy"),
-                                          pct=reporter.tick(total_units))
+                        # Both AD4 engines read the same maps, so a grid that
+                        # cannot be built takes out both -- report it once
+                        # against each rather than losing the ligand entirely.
+                        grid = attempt("ad4/ad4gpu", mode, lambda: grid_cache.materialise(
+                            mode, grid_dir, receptor_for_run, lig_pdbqt, flex_for_run))
+                        if grid is not None:
+                            fld, gpf = grid
+                            if "ad4" in cfg.scoring:
+                                out = attempt("ad4", mode, lambda: run_ad4(
+                                    cfg, tools, str(grid_dir), receptor_for_run,
+                                    lig_pdbqt, gpf, flex_for_run))
+                                if out is not None:
+                                    row = {"ligand": mol_name, "mode": mode, "scoring": "ad4",
+                                           "out_path": out, **parse_result(out, "ad4")}
+                                    rows.append(row)
+                                    reporter.emit(mol_name, "ad4", mode, row.get("energy"),
+                                                  pct=reporter.tick(total_units))
+                            if "ad4gpu" in cfg.scoring:
+                                out = attempt("ad4gpu", mode, lambda: run_adgpu(
+                                    cfg, tools, str(grid_dir), lig_pdbqt, fld, flex_for_run))
+                                if out is not None:
+                                    row = {"ligand": mol_name, "mode": mode, "scoring": "ad4gpu",
+                                           "out_path": out, **parse_result(out, "ad4gpu")}
+                                    rows.append(row)
+                                    reporter.emit(mol_name, "ad4gpu", mode, row.get("energy"),
+                                                  pct=reporter.tick(total_units))
 
                     if "adfr" in cfg.scoring:
-                        out = run_adfr(cfg, tools, str(mode_dir / "adfr"),
-                                       lig_pdbqt, _adfr_target(mode))
-                        row = {"ligand": mol_name, "mode": mode, "scoring": "adfr", "out_path": out,
-                               **parse_result(out, "adfr")}
-                        rows.append(row)
-                        reporter.emit(mol_name, "adfr", mode, row.get("energy"),
-                                      pct=reporter.tick(total_units))
+                        out = attempt("adfr", mode, lambda: run_adfr(
+                            cfg, tools, str(mode_dir / "adfr"),
+                            lig_pdbqt, _adfr_target(mode)))
+                        if out is not None:
+                            row = {"ligand": mol_name, "mode": mode, "scoring": "adfr",
+                                   "out_path": out, **parse_result(out, "adfr")}
+                            rows.append(row)
+                            reporter.emit(mol_name, "adfr", mode, row.get("energy"),
+                                          pct=reporter.tick(total_units))
                 return rows
 
             jobs = max(1, cfg.jobs)
@@ -2384,17 +2444,27 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
             with ThreadPoolExecutor(max_workers=jobs) as pool:
                 futures = [pool.submit(_dock_one, name, path, label)
                            for (name, path), label in zip(all_ligs, labels)]
-                try:
-                    # Collected in submission order, so results.csv does not
-                    # depend on how many jobs happened to run in parallel.
-                    per_ligand_rows = [f.result() for f in futures]
-                except BaseException:
-                    for pending in futures:
-                        pending.cancel()
-                    raise
+                # Collected in submission order, so results.csv does not depend
+                # on how many jobs happened to run in parallel. A ligand that
+                # blows up outside the per-engine guard is recorded and skipped
+                # too; only an interrupt stops the batch.
+                per_ligand_rows = []
+                for (lig_name, _lig_path), fut in zip(all_ligs, futures):
+                    try:
+                        per_ligand_rows.append(fut.result())
+                    except KeyboardInterrupt:
+                        for pending in futures:
+                            pending.cancel()
+                        raise
+                    except Exception as exc:                       # noqa: BLE001
+                        engine_failures.append({
+                            "ligand": lig_name, "mode": "*", "scoring": "*",
+                            "error": _error_line(exc),
+                        })
             for rows in per_ligand_rows:
                 results.extend(rows)
                 meta["outputs"].extend(rows)
+            meta["failures"] = engine_failures
             meta["ad4_grid_cache"] = {
                 "built": grid_cache.misses,
                 "reused": grid_cache.hits,
@@ -2405,6 +2475,22 @@ def dock(cfg: DockConfig, tools: ToolConfig) -> list[dict]:
                 _vlog(f"AD4 grid cache: built {grid_cache.misses}, "
                       f"reused {grid_cache.hits} in-run, "
                       f"{grid_cache.disk_hits} from {grid_cache.root}")
+
+            # Everything that could not be scored, before the results table, so
+            # nobody reads the table without seeing what is missing from it.
+            if engine_failures:
+                by_engine: dict[str, int] = {}
+                for f in engine_failures:
+                    by_engine[f["scoring"]] = by_engine.get(f["scoring"], 0) + 1
+                affected = len({f["ligand"] for f in engine_failures})
+                print(f"\n  {len(engine_failures)} kegagalan pada {affected} ligan "
+                      f"({', '.join(f'{k}: {v}' for k, v in sorted(by_engine.items()))})")
+                seen_msgs: dict[str, int] = {}
+                for f in engine_failures:
+                    seen_msgs[f["error"]] = seen_msgs.get(f["error"], 0) + 1
+                for msg, n in sorted(seen_msgs.items(), key=lambda kv: -kv[1])[:5]:
+                    print(f"    {n:>4}x  {msg}")
+                print("    Rincian lengkap di run.meta.json (kunci 'failures').")
 
         if reporter is not None:
             reporter.footer(out_dir)
@@ -3656,6 +3742,10 @@ def build_parser() -> argparse.ArgumentParser:
     dock_p.add_argument("--flex-residue", action="append", default=[],
                         help="Flexible residue spec chain:resname:resseq; repeatable")
     dock_p.add_argument("--flex-distance", type=float, default=3.0)
+    dock_p.add_argument("--rigid-macrocycles", action="store_true",
+                        help="Keep macrocycles rigid during ligand preparation. "
+                             "Needed for AD4/AD4-GPU: Meeko's ring-opening glue "
+                             "atoms (CG0/G0) are atom types AutoGrid4 rejects.")
     dock_p.add_argument("--simultaneous", type=int, default=1, choices=[1, 2],
                         help="MLSD: dock a PAIR of different ligands together in one "
                              "pocket (Vina/Vinardo only). 1 = normal one-at-a-time.")
@@ -3712,6 +3802,7 @@ CONFIG_KEYS: dict[str, str] = {
     "scoring": "list", "mode": "list",
     "native_ligand": "str", "native_chain": "str", "native_resseq": "str",
     "flex_residue": "list", "flex_distance": "float",
+    "rigid_macrocycles": "bool",
     "simultaneous": "int", "arrangement": "str", "max_groups": "int",
     "spacing": "float", "exhaustiveness": "int", "ad4_exhaustiveness": "int",
     "n_poses": "int", "energy_range": "int", "cpu": "int", "jobs": "int",
@@ -3721,6 +3812,23 @@ CONFIG_KEYS: dict[str, str] = {
     "mgltools": "str", "adfrsuite": "str", "pythonsh": "str",
     "wsl_distro": "str",
 }
+
+
+def _error_line(exc: BaseException) -> str:
+    """The most diagnostic line of a tool's error output.
+
+    Engines put the useful sentence first and the advice last, so taking the
+    last line yields "add parameters for it to the parameter library first!"
+    instead of "unknown ligand atom type CG0". Prefer a line that names the
+    error; fall back to the last non-empty one.
+    """
+    lines = [l.strip() for l in str(exc).splitlines() if l.strip()]
+    if not lines:
+        return repr(exc)[:200]
+    for line in reversed(lines):
+        if "error" in line.lower():
+            return line[:200]
+    return lines[-1][:200]
 
 
 def read_config_file(path: str) -> dict[str, str]:
@@ -3746,6 +3854,13 @@ def read_config_file(path: str) -> dict[str, str]:
 
 
 def _coerce(kind: str, value: str):
+    if kind == "bool":
+        lowered = value.strip().lower()
+        if lowered in ("yes", "true", "1", "on"):
+            return True
+        if lowered in ("no", "false", "0", "off"):
+            return False
+        raise ValueError(value)
     if kind == "int":
         return int(value)
     if kind == "float":
@@ -3837,6 +3952,8 @@ def main(argv: Iterable[str] | None = None) -> int:
                 + f" — pass them on the command line or set them in {DEFAULT_CONFIG_NAME}")
     if getattr(args, "verbose", False):
         set_verbose(True)
+    if getattr(args, "rigid_macrocycles", False):
+        set_rigid_macrocycles(True)
     if args.command != "wizard":          # wizard shows the notice in its banner
         print(license_note())
     try:

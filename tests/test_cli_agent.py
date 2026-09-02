@@ -826,5 +826,58 @@ class ConfigFileTest(unittest.TestCase):
         self.assertEqual(args.exhaustiveness, 8)
 
 
+class ErrorLineTest(unittest.TestCase):
+    """Engines put the useful sentence first and the advice last. Reporting the
+    last line turned "unknown ligand atom type CG0" into "add parameters for it
+    to the parameter library first!", which names nothing."""
+
+    def test_prefers_the_line_that_names_the_error(self):
+        exc = RuntimeError(
+            "autogrid4 failed with exit code 1\n"
+            "autogrid4: ERROR:  unknown ligand atom type CG0\n"
+            "add parameters for it to the parameter library first!\n")
+        self.assertIn("CG0", agent._error_line(exc))
+
+    def test_falls_back_to_the_last_line(self):
+        exc = RuntimeError("first\nsecond\nthird\n")
+        self.assertEqual(agent._error_line(exc), "third")
+
+    def test_empty_message_still_identifies_the_exception(self):
+        self.assertIn("RuntimeError", agent._error_line(RuntimeError("")))
+
+    def test_is_truncated(self):
+        self.assertLessEqual(len(agent._error_line(RuntimeError("x" * 500))), 200)
+
+
+class RigidMacrocyclesTest(unittest.TestCase):
+    """Meeko opens macrocycles and glues the break with CG0/G0 pseudo-atoms.
+    Vina scores those fine; AutoGrid4 rejects the types outright, so an AD4 or
+    AD4-GPU screen loses every macrocyclic ligand unless the rings stay rigid."""
+
+    def setUp(self):
+        self._before = agent._RIGID_MACROCYCLES
+
+    def tearDown(self):
+        agent.set_rigid_macrocycles(self._before)
+
+    def test_off_by_default(self):
+        agent.set_rigid_macrocycles(False)
+        self.assertFalse(agent._RIGID_MACROCYCLES)
+
+    def test_toggles(self):
+        agent.set_rigid_macrocycles(True)
+        self.assertTrue(agent._RIGID_MACROCYCLES)
+
+    def test_config_accepts_boolean_words(self):
+        for text in ("yes", "true", "1", "on", "YES"):
+            self.assertIs(agent._coerce("bool", text), True, text)
+        for text in ("no", "false", "0", "off", "No"):
+            self.assertIs(agent._coerce("bool", text), False, text)
+
+    def test_config_rejects_nonsense(self):
+        with self.assertRaises(ValueError):
+            agent._coerce("bool", "kadang")
+
+
 if __name__ == "__main__":
     unittest.main()
