@@ -48,3 +48,21 @@ Thumbs.db
 # Release build artifacts
 build/
 *.spec.bak
+
+# ── Dokumen HKI, hibah dan data pribadi — repo ini PUBLIK ─────────────────
+# Materi ini pernah tidak sengaja terekspos publik (Jul-Sep 2026) dan sudah
+# dihapus dari riwayat. Simpan di repo privat terpisah, bukan di sini.
+HAKI/
+luaran/
+*_Biodata_*
+Surat_Pernyataan*
+Surat_Pengalihan*
+
+# ── Kredensial ────────────────────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.netrc
