@@ -85,17 +85,14 @@ exclude = ["ladock.bin*", "packaging*", "scripts*", "tools*", "website*", "HAKI*
 "ladock" = ["bin/*/ADFRsuite-1.0/**"]
 
 [tool.setuptools.package-data]
-# Ship the engine executables inside the wheel so `pip install ladock` is
-# immediately followed by `ladock-cli` — no fetch step for the user.
+# The wheel published to PyPI carries no engines: ladock/bin/ is git-ignored,
+# so a clean CI checkout has nothing for this glob to match and the wheel comes
+# to about 0.5 MB. That is deliberate — an 89 MB wheel would sit against PyPI's
+# 100 MB per-file limit with no room to grow.
 #
-# Everything under bin/ ships: the flat executables (Vina, AutoDock4,
-# AutoGrid4, AutoDock-GPU — 11 MB for all three platforms) *and* MGLTools
-# (75 MB), which the AD4 grid path and flexible receptors need. That puts the
-# wheel near 87 MB, under PyPI's 100 MB per-file limit, and means every scoring
-# function except ADFR works straight after `pip install ladock`.
-#
-# ADFRsuite is the one that cannot come along: 103 MB compressed by itself, over
-# the limit. `ladock-cli --scoring adfr` therefore asks for a separate install.
-"ladock" = ["bin/**/*"]
+# Engines arrive on first use instead: ensure_platform_binaries() downloads the
+# archive for the running platform from the GitHub release, or `ladock-fetch-
+# binaries` does it explicitly. A build made where bin/ is populated (a release
+# machine) will bundle them, minus ADFRsuite.
 "ladock.desktop.gui" = ["assets/*.html", "assets/*.js", "assets/*.css", "assets/*.ico", "assets/*.png"]
 "ladock.desktop.config" = ["*.txt", "*.csv", "*.mol", "*.mol2", "*.pdb", "*.smi", "*.sdf", "*.uri", "model_example/*"]
