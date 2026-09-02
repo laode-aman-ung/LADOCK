@@ -18,7 +18,7 @@ penyiapan sinkronisasi dan tidak saya sentuh.
    Cabang `main` masih menampilkan struktur lama (`desktop/`) di halaman
    repo publik yang dirujuk naskah.
 3. Perbaiki tautan gambar `ladock_viewer.png` yang rusak di `README.md`.
-4. Pasang rclone, dorong `ladock/bin/` (658 MB) ke `gdrive:riset/LADOCK/bin`.
+4. Pasang rclone, dorong `ladock/bin/` (658 MB) ke `grive:riset/LADOCK/bin`.
 
 ## Tertunda / macet
 

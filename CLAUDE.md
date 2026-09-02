@@ -97,7 +97,7 @@ mengimpornya kecuali jalur kode yang membutuhkannya dijalankan.
 
 ```bash
 ladock-fetch-binaries                                               # dari GitHub release
-rclone sync gdrive:riset/LADOCK/bin ~/riset/LADOCK/ladock/bin        # dari Drive
+rclone sync grive:riset/LADOCK/bin ~/riset/LADOCK/ladock/bin        # dari Drive
 ```
 
 `build/` dan `dist/` adalah artefak dan tidak disinkronkan ke mana pun.
