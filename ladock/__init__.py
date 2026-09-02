@@ -9,6 +9,6 @@ Importing this package is deliberately cheap: nothing here pulls in PySide6,
 RDKit or Meeko, so ``ladock-cli`` starts without paying for the GUI stack.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 __all__ = ["__version__"]
