@@ -322,7 +322,7 @@ class DocumentationDialog(QDialog):
         web_btn = QPushButton("🌐 Project Website")
         web_btn.clicked.connect(
             lambda: QDesktopServices.openUrl(
-                QUrl("https://github.com/laode-aman-ung/LADOCK"))
+                QUrl("https://github.com/laode-aman-ung/ladock"))
         )
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)

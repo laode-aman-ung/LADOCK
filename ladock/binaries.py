@@ -50,7 +50,7 @@ PLATFORMS = ("windows", "linux", "mac")
 # necessarily the current package version: 0.3.1 changes only metadata, and the
 # engines are unchanged, so re-uploading 187 MB to a new tag would be waste.
 # Only move this when a release genuinely ships new engine archives.
-_DEFAULT_BASE = "https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0"
+_DEFAULT_BASE = "https://github.com/laode-aman-ung/ladock/releases/download/v0.3.0"
 _BASE = (os.environ.get("LADOCK_BIN_BASE_URL") or _DEFAULT_BASE).rstrip("/")
 _TOKEN = (os.environ.get("LADOCK_BIN_TOKEN") or "").strip()
 

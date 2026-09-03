@@ -56,7 +56,7 @@ pip install ladock
 From a source checkout:
 
 ```bash
-git clone https://github.com/laode-aman-ung/LADOCK.git
+git clone https://github.com/laode-aman-ung/ladock.git
 cd LADOCK
 pip install -e .
 ```

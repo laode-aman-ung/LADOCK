@@ -61,7 +61,7 @@ Each archive has a top-level `<platform>/` folder; exec bits are forced for
 linux/mac so they work even when packaged from Windows.
 
 **2. Host** the three archives. They are attached to the GitHub release, e.g.
-`https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0/bin-windows.tar.gz`
+`https://github.com/laode-aman-ung/ladock/releases/download/v0.3.0/bin-windows.tar.gz`
 (a private bucket works too — see `LADOCK_BIN_BASE_URL` below).
 
 **3. Fetch** (CI runs this automatically before each build):
@@ -86,7 +86,7 @@ Two channels exist. **GitHub releases is the one in use.**
 `ladock/binaries.py` fetches engine archives from release assets by default:
 
 ```
-https://github.com/laode-aman-ung/LADOCK/releases/download/v0.3.0/...
+https://github.com/laode-aman-ung/ladock/releases/download/v0.3.0/...
 ```
 
 No separate web host, no certificate to keep alive, and the files are already

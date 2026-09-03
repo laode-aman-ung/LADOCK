@@ -46,7 +46,7 @@ perintah, bukan nama repositori — jangan pernah membuat repo dengan nama itu.
 
 | Repo | Status | Isi |
 |---|---|---|
-| `laode-aman-ung/LADOCK` | publik | repo ini — produk lengkap, kedua mode |
+| `laode-aman-ung/ladock` | publik | repo ini — produk lengkap, kedua mode |
 | `laode-aman-ung/ladock-riset` | privat | HKI, naskah, luaran hibah, pengujian per tahun |
 
 Repo `ladock-desktop` pernah ada berisi snapshot GUI 2.0.0 yang sudah

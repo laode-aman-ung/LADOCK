@@ -58,9 +58,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage      = "https://github.com/laode-aman-ung/LADOCK"
-Repository    = "https://github.com/laode-aman-ung/LADOCK"
-"Bug Tracker" = "https://github.com/laode-aman-ung/LADOCK/issues"
+Homepage      = "https://github.com/laode-aman-ung/ladock"
+Repository    = "https://github.com/laode-aman-ung/ladock"
+"Bug Tracker" = "https://github.com/laode-aman-ung/ladock/issues"
 
 [project.scripts]
 ladock-cli = "ladock.cli.agent:main"

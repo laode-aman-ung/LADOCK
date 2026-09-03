@@ -55,7 +55,7 @@ lengkap, tahap publish dilewati.
 - **Nomor versi permanen.** PyPI melarang versi yang sama dipakai ulang, bahkan
   setelah dihapus. Salah sedikit → rilis 0.3.1.
 - **Arsip engine diambil dari release assets.** `ladock/binaries.py` menunjuk
-  `https://github.com/laode-aman-ung/LADOCK/releases/download/v<versi>/`, jadi
+  `https://github.com/laode-aman-ung/ladock/releases/download/v<versi>/`, jadi
   unggah arsipnya ke rilis itu sebelum diumumkan — kalau tidak,
   `ladock-fetch-binaries` gagal untuk semua pengguna baru. Buat arsipnya dengan
   `python packaging/package_binaries.py linux`. (Jalur lama
